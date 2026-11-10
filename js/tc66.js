@@ -133,6 +133,15 @@
   const PACKET_CRC_OFFSET = 60;
   const RECORD_SIZE = 8;
   const RECORD_END_MARKER = 'reck';
+  const FIRMWARE_CHUNK_SIZE = 64;
+
+  // The official firmware image, for a safety check before a flash.
+  // SHA-256 of the v1.18 TC66.bin from the RDTech update server.
+  const OFFICIAL_FIRMWARE = {
+    version: '1.18',
+    size: 51840,
+    sha256: 'ef796b29557c91e0a469740ba1934ca0a838916c76ab55eb6d1253da32830940',
+  };
 
   function readAscii(bytes, offset, length) {
     let text = '';
@@ -264,6 +273,13 @@
       ].join(','));
     }
     return lines.join('\n') + '\n';
+  }
+
+  // Compute the lowercase hex SHA-256 of the bytes. Uses the Web Crypto API.
+  async function sha256Hex(bytes) {
+    const source = bytes.buffer ? bytes.slice() : bytes; // A fresh copy gives a plain ArrayBuffer.
+    const digest = await crypto.subtle.digest('SHA-256', source);
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   function samplesToCsv(samples) {
@@ -479,6 +495,75 @@
       return readAscii(response, 0, 4);
     }
 
+    // Take exactly `length` bytes from the receive buffer. Keep the rest.
+    // Call this only inside a queued task.
+    async readExact(length, timeoutMilliseconds, what) {
+      const deadline = performance.now() + timeoutMilliseconds;
+      while (this.receivedLength < length && !this.closing) {
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) break;
+        await this.waitForData(remaining);
+      }
+      if (this.receivedLength < length) {
+        throw new Error(`${what}: received ${this.receivedLength} of ${length} bytes in ${timeoutMilliseconds} ms`);
+      }
+      const all = this.takeReceivedBytes();
+      if (all.length > length) {
+        this.receivedChunks = [all.subarray(length)];
+        this.receivedLength = all.length - length;
+      }
+      return all.subarray(0, length);
+    }
+
+    // Flash a firmware image. The meter MUST be in bootloader mode.
+    // A wrong image or an interrupted flash can make the meter unusable.
+    // handlers: { onStatus(text), onProgress({ bytesSent, totalBytes, chunksSent, totalChunks }) }
+    updateFirmware(firmwareBytes, handlers = {}) {
+      const { onStatus, onProgress } = handlers;
+      return this.enqueue(async () => {
+        if (!firmwareBytes || firmwareBytes.length === 0) throw new Error('The firmware image is empty.');
+        const encoder = new TextEncoder();
+        const writeBytes = (bytes) => withTimeout(this.writer.write(bytes), 3000, 'Write timed out.');
+        const asText = (bytes) => String.fromCharCode.apply(null, bytes);
+
+        // 1. The meter must be in bootloader mode.
+        if (onStatus) onStatus('Checking the meter mode…');
+        this.takeReceivedBytes();
+        await writeBytes(encoder.encode('query'));
+        const mode = asText(await this.readExact(4, 1500, 'query'));
+        if (mode !== 'boot') {
+          throw new Error(`The meter is in "${mode}" mode, not bootloader mode. Enter bootloader mode first.`);
+        }
+
+        // 2. Enter update mode. The toolkit sends the command with CR and LF.
+        if (onStatus) onStatus('Entering update mode…');
+        this.takeReceivedBytes();
+        await writeBytes(encoder.encode('update\r\n'));
+        const ready = asText(await this.readExact(5, 3000, 'update'));
+        if (ready !== 'uprdy') throw new Error(`The meter replied "${ready}", but "uprdy" was expected.`);
+
+        // 3. Send the image in 64-byte chunks. The meter replies "OK" after each one.
+        const totalBytes = firmwareBytes.length;
+        const totalChunks = Math.ceil(totalBytes / FIRMWARE_CHUNK_SIZE);
+        if (onStatus) onStatus('Writing the firmware…');
+        let bytesSent = 0;
+        for (let index = 0; index < totalChunks; index++) {
+          const start = index * FIRMWARE_CHUNK_SIZE;
+          const chunk = firmwareBytes.subarray(start, Math.min(start + FIRMWARE_CHUNK_SIZE, totalBytes));
+          await writeBytes(chunk);
+          const reply = asText(await this.readExact(2, 3000, `chunk ${index + 1}`));
+          if (reply !== 'OK') {
+            throw new Error(`The meter replied "${reply}" for chunk ${index + 1} of ${totalChunks}, but "OK" was expected. ` +
+              'The meter may not start. Try the update again.');
+          }
+          bytesSent += chunk.length;
+          if (onProgress) onProgress({ bytesSent, totalBytes, chunksSent: index + 1, totalChunks });
+        }
+        if (onStatus) onStatus('done');
+        return { totalBytes, totalChunks };
+      });
+    }
+
     async getva() {
       return parseGetva(await this.request('getva', GETVA_LENGTH, 1500));
     }
@@ -506,11 +591,14 @@
     summarizeRecords,
     recordsToCsv,
     samplesToCsv,
+    sha256Hex,
     TC66Port,
     USB_VENDOR_ID,
     GETVA_KEY,
     GETVA_LENGTH,
     RECORD_SIZE,
+    FIRMWARE_CHUNK_SIZE,
+    OFFICIAL_FIRMWARE,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else globalScope.TC66 = api;

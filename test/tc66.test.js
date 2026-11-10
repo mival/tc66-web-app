@@ -68,3 +68,64 @@ test('gtrec dump matches the CSV from the PowerShell script', () => {
   assert.equal(outputLines[0], 'idx,time_s,volts,amps,watts,mAh,mWh');
   assert.equal(outputLines.length, 495);
 });
+
+test('sha256Hex matches a known value', async () => {
+  const digest = await TC66.sha256Hex(new TextEncoder().encode('abc'));
+  assert.equal(digest, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+});
+
+// Build a TC66Port with a fake writer that answers the bootloader protocol.
+function makeFakePort(answer) {
+  const port = new TC66.TC66Port({});
+  port.closing = false;
+  const encode = (text) => new TextEncoder().encode(text);
+  port.writer = {
+    write: async (bytes) => {
+      const copy = new Uint8Array(bytes.slice());
+      const text = String.fromCharCode.apply(null, copy);
+      port.__writes.push(copy);
+      const reply = answer(text, copy);
+      if (reply) port.addReceivedChunk(encode(reply));
+    },
+  };
+  port.__writes = [];
+  return port;
+}
+
+test('updateFirmware follows the bootloader protocol', async () => {
+  const firmware = new Uint8Array(200); // 4 chunks: 64, 64, 64, 8.
+  firmware.forEach((_, i) => { firmware[i] = i & 0xff; });
+  const port = makeFakePort((text) => {
+    if (text === 'query') return 'boot';
+    if (text === 'update\r\n') return 'uprdy';
+    return 'OK'; // Every chunk is acknowledged.
+  });
+  const progress = [];
+  const result = await port.updateFirmware(firmware, { onProgress: (p) => progress.push(p) });
+  assert.equal(result.totalChunks, 4);
+  assert.equal(result.totalBytes, 200);
+  const writes = port.__writes;
+  assert.equal(String.fromCharCode(...writes[0]), 'query');
+  assert.equal(String.fromCharCode(...writes[1]), 'update\r\n');
+  assert.equal(writes.length, 6); // query, update, 4 chunks.
+  assert.equal(writes[2].length, 64);
+  assert.equal(writes[5].length, 8); // The last chunk is short.
+  assert.equal(progress.length, 4);
+  assert.equal(progress[3].bytesSent, 200);
+});
+
+test('updateFirmware stops when the meter is not in bootloader mode', async () => {
+  const port = makeFakePort((text) => (text === 'query' ? 'firm' : 'OK'));
+  await assert.rejects(() => port.updateFirmware(new Uint8Array(64)), /not bootloader mode/);
+});
+
+test('updateFirmware stops when a chunk is not acknowledged', async () => {
+  let chunkCount = 0;
+  const port = makeFakePort((text) => {
+    if (text === 'query') return 'boot';
+    if (text === 'update\r\n') return 'uprdy';
+    chunkCount++;
+    return chunkCount === 2 ? 'NO' : 'OK'; // The second chunk fails.
+  });
+  await assert.rejects(() => port.updateFirmware(new Uint8Array(200)), /chunk 2 of 4/);
+});

@@ -22,6 +22,9 @@
   let samples = [];
   let recording = null; // { dump, records, summary }
   let drawScheduled = false;
+  let deviceMode = null; // 'firm', 'boot' or null.
+  let firmware = null; // { bytes, name, sha256, isOfficial }
+  let flashing = false;
 
   // ---------- Log and status ----------
 
@@ -40,11 +43,14 @@
 
   function setConnectedUi(connected) {
     element('connect').disabled = connected;
-    element('disconnect').disabled = !connected;
+    element('disconnect').disabled = !connected || flashing;
     element('pause').disabled = !connected;
     element('download-recording').disabled = !connected;
     element('raw-send').disabled = !connected;
+    element('check-mode').disabled = !connected || flashing;
     document.querySelectorAll('button[data-command]').forEach((button) => { button.disabled = !connected; });
+    if (!connected) setDeviceMode(null);
+    refreshFlashButton();
   }
 
   function fileTimestamp() {
@@ -94,10 +100,11 @@
 
     try {
       const mode = await newConnection.query();
+      setDeviceMode(mode);
       addLogLine(`query → "${mode}"`);
       if (mode === 'boot') {
-        setStatus('Meter is in bootloader mode', 'error');
-        addLogLine('The meter is in bootloader mode. Replug it without the K1 button to start the normal firmware.');
+        setStatus('Bootloader mode', 'error');
+        addLogLine('The meter is in bootloader mode. Use the firmware update section, or replug without K1 for normal use.');
         return;
       }
       if (mode !== 'firm') addLogLine(`Unexpected query response "${mode}". The page tries getva.`);
@@ -364,6 +371,94 @@
     }
   }
 
+  // ---------- Firmware update ----------
+
+  function setDeviceMode(mode) {
+    deviceMode = mode;
+    const label = mode === 'boot' ? 'bootloader' : mode === 'firm' ? 'firmware (normal)' : 'unknown';
+    element('update-mode').textContent = label;
+    refreshFlashButton();
+  }
+
+  async function checkMode() {
+    if (!connection || flashing) return;
+    try {
+      const mode = await connection.query();
+      setDeviceMode(mode);
+      addLogLine(`query → "${mode}"`);
+    } catch (error) {
+      addLogLine(`Check mode failed: ${error.message}`);
+    }
+  }
+
+  async function onFirmwareFile() {
+    const file = element('firmware-file').files[0];
+    const info = element('firmware-info');
+    firmware = null;
+    if (!file) {
+      info.textContent = '';
+      info.className = 'hint';
+      refreshFlashButton();
+      return;
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const sha256 = await TC66.sha256Hex(bytes);
+    const isOfficial = sha256 === TC66.OFFICIAL_FIRMWARE.sha256;
+    firmware = { bytes, name: file.name, sha256, isOfficial };
+    const chunkNote = bytes.length % TC66.FIRMWARE_CHUNK_SIZE ? ' (not a multiple of 64 bytes)' : '';
+    if (isOfficial) {
+      info.className = 'hint ok';
+      info.textContent = `✓ Official TC66 firmware v${TC66.OFFICIAL_FIRMWARE.version}. ${bytes.length} bytes. SHA-256 matches.`;
+    } else {
+      info.className = 'hint bad';
+      info.textContent = `⚠ Unrecognized file "${file.name}". ${bytes.length} bytes${chunkNote}. ` +
+        `SHA-256 ${sha256.slice(0, 16)}… does not match the official v${TC66.OFFICIAL_FIRMWARE.version} image. ` +
+        'Flashing this can permanently brick the meter.';
+    }
+    refreshFlashButton();
+  }
+
+  function refreshFlashButton() {
+    const ready = !!connection && !flashing && deviceMode === 'boot' && !!firmware && element('update-confirm').checked;
+    element('flash').disabled = !ready;
+  }
+
+  async function flashFirmware() {
+    if (!connection || flashing || deviceMode !== 'boot' || !firmware) return;
+    if (!firmware.isOfficial) {
+      const message = `This file does not match the official firmware.\n\nName: ${firmware.name}\nSize: ${firmware.bytes.length} bytes\n` +
+        `SHA-256: ${firmware.sha256}\n\nFlashing a wrong image can permanently brick the meter. Continue?`;
+      if (!confirm(message)) return;
+    }
+    const activeConnection = connection;
+    flashing = true;
+    setConnectedUi(true);
+    element('flash').disabled = true;
+    element('check-mode').disabled = true;
+    const progress = element('flash-progress');
+    progress.hidden = false;
+    progress.value = 0;
+    addLogLine(`Firmware update starts: ${firmware.name} (${firmware.bytes.length} bytes).`);
+    try {
+      await activeConnection.updateFirmware(firmware.bytes, {
+        onStatus: (text) => { if (text !== 'done') element('flash-status').textContent = text; },
+        onProgress: ({ bytesSent, totalBytes, chunksSent, totalChunks }) => {
+          progress.value = Math.round((bytesSent / totalBytes) * 100);
+          element('flash-status').textContent = `${bytesSent}/${totalBytes} bytes · chunk ${chunksSent}/${totalChunks}`;
+        },
+      });
+      element('flash-status').textContent = 'Done. Unplug and replug the meter to start the new firmware.';
+      addLogLine('Firmware update finished. Unplug and replug the meter.');
+    } catch (error) {
+      element('flash-status').textContent = `Failed: ${error.message}`;
+      addLogLine(`Firmware update failed: ${error.message}`);
+      addLogLine('If the meter does not start, try the update again before you unplug it.');
+    } finally {
+      flashing = false;
+      setConnectedUi(!!connection);
+    }
+  }
+
   // ---------- Events ----------
 
   // ---------- Color scheme toggle ----------
@@ -435,6 +530,10 @@
       if (recording) saveFile(`tc66-rec-${fileTimestamp()}.bin`, recording.dump, 'application/octet-stream');
     });
     element('raw-form').addEventListener('submit', sendRawCommand);
+    element('check-mode').addEventListener('click', checkMode);
+    element('firmware-file').addEventListener('change', onFirmwareFile);
+    element('update-confirm').addEventListener('change', refreshFlashButton);
+    element('flash').addEventListener('click', flashFirmware);
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleDraw);
     initThemeToggle();

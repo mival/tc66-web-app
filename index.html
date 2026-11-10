@@ -121,6 +121,52 @@ try { document.querySelector('meta[name="color-scheme"]').content = localStorage
     </div>
   </section>
 
+  <section class="danger" aria-labelledby="update-heading">
+    <details id="update-details">
+      <summary id="update-heading">⚠ Firmware update (danger)</summary>
+
+      <div class="warn-box" role="alert">
+        <strong>Warning.</strong> A firmware update can make the meter unusable (a "brick").
+        <ul>
+          <li>Flash <strong>only</strong> an official TC66 firmware image. A wrong file can destroy the meter.</li>
+          <li>Do <strong>not</strong> unplug the meter during the update.</li>
+          <li>Use a direct USB port. Do not use a hub.</li>
+          <li>The meter runs firmware 1.17. The only public image is 1.18, with no release notes. The gain is small.</li>
+        </ul>
+      </div>
+
+      <h3>Step 1 — Enter bootloader mode</h3>
+      <ol class="steps">
+        <li>Disconnect the meter.</li>
+        <li>Press and hold the <strong>K1</strong> button.</li>
+        <li>Connect the meter while you hold K1.</li>
+        <li>Release K1.</li>
+        <li>Click <strong>Connect</strong> at the top, then <strong>Check mode</strong> below.</li>
+      </ol>
+      <div class="row">
+        <button id="check-mode" disabled>Check mode</button>
+        <span>Mode: <b id="update-mode">unknown</b></span>
+      </div>
+
+      <h3>Step 2 — Choose the firmware file</h3>
+      <div class="row">
+        <input type="file" id="firmware-file" accept=".bin,application/octet-stream">
+      </div>
+      <p id="firmware-info" class="hint"></p>
+
+      <h3>Step 3 — Flash</h3>
+      <label class="confirm">
+        <input type="checkbox" id="update-confirm">
+        I understand this can permanently brick the meter.
+      </label>
+      <div class="row">
+        <button id="flash" class="danger-button" disabled>Flash firmware</button>
+        <span id="flash-status" class="hint" role="status"></span>
+      </div>
+      <progress id="flash-progress" max="100" value="0" hidden></progress>
+    </details>
+  </section>
+
   <section aria-labelledby="raw-heading">
     <details>
       <summary id="raw-heading">Advanced: raw command</summary>

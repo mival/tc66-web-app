@@ -26,6 +26,9 @@ const mockSerialScript = `(() => {
   const fromBase64 = (text) => Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
   const serialLog = (window.__serialLog = []);
   let getvaCount = 0;
+  const bootMode = location.search.includes('boot');
+  let updateStarted = false;
+  window.__flash = { chunks: 0, bytes: 0 };
   class MockPort extends EventTarget {
     getInfo() { return { usbVendorId: 0x28e9, usbProductId: 0x018a }; }
     async open(options) {
@@ -48,16 +51,20 @@ const mockSerialScript = `(() => {
       };
       this.writable = new WritableStream({ write: (data) => {
         const command = new TextDecoder().decode(data);
-        serialLog.push(command);
-        if (command === 'query') reply(new TextEncoder().encode('firm'));
+        const encode = (text) => new TextEncoder().encode(text);
+        if (command === 'query') { serialLog.push('query'); reply(encode(bootMode ? 'boot' : 'firm')); }
         else if (command === 'getva') {
+          serialLog.push('getva');
           getvaCount++;
           const response = fromBase64(fixtures.getva[getvaCount % 3]);
           if (getvaCount === 3) response[5] ^= 0xff; // One corrupted response.
           reply(response);
         }
-        else if (command === 'gtrec') reply(fromBase64(fixtures.gtrec), 512, 50);
-        else if (command === 'hello') reply(new TextEncoder().encode('?'));
+        else if (command === 'gtrec') { serialLog.push('gtrec'); reply(fromBase64(fixtures.gtrec), 512, 50); }
+        else if (command === 'hello') { serialLog.push('hello'); reply(encode('?')); }
+        else if (command.startsWith('update')) { serialLog.push('update'); updateStarted = true; reply(encode('uprdy')); }
+        else if (updateStarted) { window.__flash.chunks++; window.__flash.bytes += data.byteLength; reply(encode('OK'), 2, 1); }
+        else serialLog.push(command);
       }});
     }
     async setSignals(signals) { serialLog.push('signals:' + JSON.stringify(signals)); }
@@ -145,6 +152,7 @@ const check = (name, passed, details = '') => {
 try {
   await sendCommand('Runtime.enable');
   await sendCommand('Page.enable');
+  await sendCommand('DOM.enable');
   await sendCommand('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: outputDirectory });
   await sendCommand('Emulation.setDeviceMetricsOverride', { width: 1100, height: 1800, deviceScaleFactor: 1, mobile: false });
   await sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: mockSerialScript });
@@ -214,6 +222,47 @@ try {
   await click('#disconnect');
   await sleep(500);
   check('disconnect closes the port', (await evaluate('window.__serialLog')).includes('close'));
+
+  // ---- Firmware update flow, with the mock in bootloader mode ----
+  const fakeFirmware = Buffer.alloc(200);
+  fakeFirmware.forEach((_, i) => { fakeFirmware[i] = i & 0xff; });
+  const fakeFirmwarePath = path.join(outputDirectory, 'fake-firmware.bin');
+  fs.writeFileSync(fakeFirmwarePath, fakeFirmware);
+
+  await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'index.html')).href + '?boot=1' });
+  await sleep(600);
+  await click('#connect');
+  await sleep(800);
+  const updateMode = await textOf('update-mode');
+  check('connect in bootloader shows bootloader mode', updateMode === 'bootloader', updateMode);
+
+  await evaluate(`document.getElementById('update-details').open = true`);
+  await click('#check-mode');
+  await sleep(300);
+
+  const document_ = await sendCommand('DOM.getDocument', { depth: 0 });
+  const fileNode = await sendCommand('DOM.querySelector', { nodeId: document_.result.root.nodeId, selector: '#firmware-file' });
+  await sendCommand('DOM.setFileInputFiles', { files: [fakeFirmwarePath], nodeId: fileNode.result.nodeId });
+  await sleep(500);
+  const firmwareInfo = await textOf('firmware-info');
+  check('unofficial firmware is flagged', /Unrecognized/.test(firmwareInfo), firmwareInfo.slice(0, 40));
+  check('flash is disabled before the confirmation', await evaluate(`document.getElementById('flash').disabled`));
+
+  await click('#update-confirm');
+  await evaluate('window.confirm = () => true'); // Accept the unofficial-firmware warning.
+  await sleep(100);
+  check('flash is enabled after the confirmation', !(await evaluate(`document.getElementById('flash').disabled`)));
+
+  await click('#flash');
+  await sleep(1500);
+  const flash = await evaluate('window.__flash');
+  const flashStatus = await textOf('flash-status');
+  const flashLog = await textOf('log');
+  check('all firmware chunks are sent', flash.chunks === 4 && flash.bytes === 200, JSON.stringify(flash));
+  check('update command uses CR and LF', (await evaluate('window.__serialLog')).includes('update'));
+  check('flash reports success', /Done/.test(flashStatus), flashStatus);
+  check('flash finishes in the log', /Firmware update finished/.test(flashLog));
+
   check('page has no errors', pageErrors.length === 0, pageErrors.join(' | '));
 } finally {
   socket.close();
