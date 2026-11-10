@@ -41,17 +41,26 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   <section aria-labelledby="live-heading">
     <h2 id="live-heading">Live</h2>
     <div class="readouts">
-      <div class="readout voltage"><div class="label" data-unit="V">Voltage</div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
-      <div class="readout current"><div class="label" data-unit="A">Current</div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
-      <div class="readout power"><div class="label" data-unit="W">Power</div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
+      <div class="readout voltage"><div class="label" data-unit="V">Voltage <button type="button" class="help-btn" popovertarget="help-voltage" aria-label="What is voltage?">?</button></div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
+      <div class="readout current"><div class="label" data-unit="A">Current <button type="button" class="help-btn" popovertarget="help-current" aria-label="What is current?">?</button></div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
+      <div class="readout power"><div class="label" data-unit="W">Power <button type="button" class="help-btn" popovertarget="help-power" aria-label="What is power?">?</button></div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
     </div>
     <div class="secondary-values">
-      <div><span>Load </span><b id="value-resistance">–</b> Ω</div>
-      <div><span>Temp </span><b id="value-temperature">–</b> °C</div>
-      <div><span>D+ </span><b id="value-data-plus">–</b> V</div>
-      <div><span>D− </span><b id="value-data-minus">–</b> V</div>
-      <div><span>Samples </span><b id="value-sample-count">0</b></div>
+      <div><span>Load </span><b id="value-resistance">–</b> Ω <button type="button" class="help-btn" popovertarget="help-resistance" aria-label="What is load resistance?">?</button></div>
+      <div><span>Temp </span><b id="value-temperature">–</b> °C <button type="button" class="help-btn" popovertarget="help-temperature" aria-label="What is temperature?">?</button></div>
+      <div><span>D+ </span><b id="value-data-plus">–</b> V <button type="button" class="help-btn" popovertarget="help-data-plus" aria-label="What is D+?">?</button></div>
+      <div><span>D− </span><b id="value-data-minus">–</b> V <button type="button" class="help-btn" popovertarget="help-data-minus" aria-label="What is D−?">?</button></div>
+      <div><span>Samples </span><b id="value-sample-count">0</b> <button type="button" class="help-btn" popovertarget="help-sample-count" aria-label="What is the sample count?">?</button></div>
     </div>
+    <!-- Help texts for the live values. Each one opens from its "?" button. -->
+    <div popover id="help-voltage" class="help-pop">Bus voltage (VBUS) across the USB connector.</div>
+    <div popover id="help-current" class="help-pop">Current on the bus. It rises when the load draws power.</div>
+    <div popover id="help-power" class="help-pop">Power now. Power is voltage times current.</div>
+    <div popover id="help-resistance" class="help-pop">Load resistance. The meter computes it from the voltage and the current.</div>
+    <div popover id="help-temperature" class="help-pop">Internal temperature of the meter.</div>
+    <div popover id="help-data-plus" class="help-pop">Voltage on the USB D+ data line. A charger sets D+ and D− to tell the device how much current it can draw. This is the charge mode.</div>
+    <div popover id="help-data-minus" class="help-pop">Voltage on the USB D− data line. With D+, it shows the charger handshake, for example USB BC1.2 or Quick Charge.</div>
+    <div popover id="help-sample-count" class="help-pop">Number of readings since you connected.</div>
     <div class="row">
       <label>Poll every
         <select id="poll-interval">
