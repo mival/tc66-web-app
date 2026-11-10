@@ -1,6 +1,6 @@
 // Service worker: cache the app shell for offline use.
 // Change CACHE_VERSION to ship new files.
-const CACHE_VERSION = 'tc66-v1';
+const CACHE_VERSION = 'tc66-v3';
 const APP_SHELL = [
   './',
   'index.html',
@@ -11,7 +11,11 @@ const APP_SHELL = [
   'js/app.js',
   'js/db.js',
   'js/battery.js',
+  'js/uchart.js',
+  'js/theme.js',
   'js/pwa.js',
+  'js/vendor/uplot/uPlot.iife.min.js',
+  'js/vendor/uplot/uPlot.min.css',
   'manifest.webmanifest',
   'icon.svg',
 ];

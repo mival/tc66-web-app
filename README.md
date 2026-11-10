@@ -11,7 +11,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - Download of the offline recording (`gtrec`) to CSV or raw `.bin`, with a sample period that you set.
 - Device information: model, firmware, serial, run count and the two mAh/mWh groups.
 - An "Advanced" console that sends a raw ASCII command and shows the reply as hex.
-- Light and dark theme. The page follows the system setting. The header button selects the other theme for this browser.
+- Light and dark theme. The header button cycles auto, light and dark. "Auto" follows the system setting.
 - A layout for phones and tablets.
 - A battery test page (`battery.html`) for power bank capacity. See below.
 - A Progressive Web App (PWA). You can install it and use it offline.
@@ -26,6 +26,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - Automatic start and stop: the test starts when the current rises above a threshold and stops when it falls below one.
 - Each test is saved in the browser with IndexedDB. No server is needed.
 - The "Saved tests" list shows each test. Select one to graph it and read its totals.
+- Interactive charts (uPlot). Move the mouse over a chart to read the values. Drag sideways to zoom. Double click to reset.
 - Export or import all tests as a JSON file. Download a test as CSV.
 
 The data stays in the browser. To see a test on another device, export the JSON and import it there.
@@ -47,10 +48,13 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `battery.html` | Battery test page markup |
 | `css/style.css` | Styles, light and dark color scheme, phone layout |
 | `js/tc66.js` | AES-256 decryption, packet parsers, CSV export, serial transport |
-| `js/chart.js` | Canvas strip chart |
+| `js/chart.js` | Canvas strip chart (meter page) |
+| `js/uchart.js` | Interactive uPlot chart wrapper (battery page) |
+| `js/vendor/uplot/` | uPlot chart library |
 | `js/app.js` | Meter page logic |
 | `js/db.js` | IndexedDB session store and capacity integrator |
 | `js/battery.js` | Battery test page logic |
+| `js/theme.js` | Color scheme toggle (auto, light, dark) |
 | `js/pwa.js` | Service worker registration |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
 | `test/` | Unit tests, end-to-end tests, meter fixtures |

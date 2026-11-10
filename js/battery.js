@@ -8,10 +8,10 @@
   const DB_FLUSH_INTERVAL_MS = 15000; // Write buffered samples to the database at most this often.
 
   const CHART_SERIES = [
-    { field: 'v', colorToken: '--color-voltage', unit: 'V', decimals: 3, label: 'Voltage' },
-    { field: 'a', colorToken: '--color-current', unit: 'A', decimals: 4, label: 'Current' },
-    { field: 'w', colorToken: '--color-power', unit: 'W', decimals: 3, label: 'Power' },
-    { field: 'mAh', colorToken: '--color-voltage', unit: 'mAh', decimals: 0, label: 'Charge' },
+    { field: 'v', suffix: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 3, label: 'Voltage' },
+    { field: 'a', suffix: 'current', colorToken: '--color-current', unit: 'A', decimals: 4, label: 'Current' },
+    { field: 'w', suffix: 'power', colorToken: '--color-power', unit: 'W', decimals: 3, label: 'Power' },
+    { field: 'mAh', suffix: 'mah', colorToken: '--color-success', unit: 'mAh', decimals: 0, label: 'Charge' },
   ];
 
   let connection = null;
@@ -22,6 +22,8 @@
   let autoBelowSince = null;
   let selectedSessionId = null;
   let drawScheduled = false;
+  let liveCharts = null;
+  let viewCharts = null;
 
   // ---------- Log and status ----------
 
@@ -229,7 +231,7 @@
 
   function updateLiveStats() {
     const durationS = recording.samples.length ? (recording.prev.t - recording.startedAt) / 1000 : 0;
-    element('stat-time').textContent = Chart.formatTime(durationS);
+    element('stat-time').textContent = UChart.formatTime(durationS);
     element('stat-mah').textContent = recording.totalMah.toFixed(1);
     element('stat-wh').textContent = recording.totalWh.toFixed(3);
     const eff = TC66DB_API.efficiency(recording.totalWh, recording.ratedWh);
@@ -285,34 +287,36 @@
     requestAnimationFrame(() => { drawScheduled = false; drawLiveCharts(); });
   }
 
-  // Add elapsed time and cumulative mAh for the charts.
-  function withCumulative(samples) {
-    const integrated = TC66DB_API.integrateTimeSeries(samples);
-    return integrated.rows;
-  }
-
-  const CANVAS_SUFFIX = { v: 'voltage', a: 'current', w: 'power', mAh: 'mah' };
-
-  function drawChartSet(prefix, samples) {
-    const rows = withCumulative(samples);
-    const times = rows.map((r) => r.elapsedS);
-    const end = times.length ? Math.max(times[times.length - 1], 1) : 1;
+  // Build the four charts in the containers with the given id prefix. They share a cursor.
+  function buildCharts(prefix) {
+    const sync = UChart.sync(prefix || 'live');
+    const charts = {};
     for (const series of CHART_SERIES) {
-      Chart.drawStrip(element(`${prefix}chart-${CANVAS_SUFFIX[series.field]}`), {
-        times,
-        values: rows.map((r) => r[series.field]),
-        timeStart: 0,
-        timeEnd: end,
-        color: Chart.resolveColor(`var(${series.colorToken})`),
-        unit: series.unit,
-        decimals: series.decimals,
-        label: series.label,
+      charts[series.field] = UChart.create(element(`${prefix}chart-${series.suffix}`), {
+        label: series.label, unit: series.unit, colorToken: series.colorToken, decimals: series.decimals, sync,
       });
     }
+    return charts;
+  }
+
+  // Add elapsed time and cumulative mAh, then set the data on each chart.
+  function setChartData(charts, samples) {
+    const rows = TC66DB_API.integrateTimeSeries(samples).rows;
+    const times = rows.map((r) => r.elapsedS);
+    for (const series of CHART_SERIES) charts[series.field].setData(times, rows.map((r) => r[series.field]));
   }
 
   function drawLiveCharts() {
-    drawChartSet('', recording ? recording.samples : liveBuffer);
+    if (!liveCharts) liveCharts = buildCharts('');
+    setChartData(liveCharts, recording ? recording.samples : liveBuffer);
+  }
+
+  // Remove the charts so they rebuild with the new theme colors.
+  function rebuildCharts() {
+    if (liveCharts) { Object.values(liveCharts).forEach((chart) => chart.destroy()); liveCharts = null; }
+    if (viewCharts) { Object.values(viewCharts).forEach((chart) => chart.destroy()); viewCharts = null; }
+    scheduleDraw();
+    if (selectedSessionId != null) viewSession(selectedSessionId);
   }
 
   // ---------- History ----------
@@ -337,7 +341,7 @@
       const cells = [
         session.name,
         formatDate(session.startedAt),
-        Chart.formatTime(durationS),
+        UChart.formatTime(durationS),
         session.mAh ? session.mAh.toFixed(0) : '–',
         session.wh ? session.wh.toFixed(2) : '–',
         eff != null ? `${eff.toFixed(0)} %` : '–',
@@ -372,13 +376,14 @@
       : 'not set';
     element('view-stats').innerHTML = `
       <dt>Started</dt><dd>${formatDate(session.startedAt)}</dd>
-      <dt>Duration</dt><dd>${Chart.formatTime(integrated.durationS)} · ${integrated.count} samples</dd>
+      <dt>Duration</dt><dd>${UChart.formatTime(integrated.durationS)} · ${integrated.count} samples</dd>
       <dt>Delivered</dt><dd>${integrated.mAh.toFixed(1)} mAh · ${integrated.wh.toFixed(3)} Wh</dd>
       <dt>Average</dt><dd>${integrated.avgVoltage.toFixed(3)} V · voltage ${integrated.minVoltage.toFixed(3)}–${integrated.maxVoltage.toFixed(3)} V</dd>
       <dt>Peak</dt><dd>${integrated.maxCurrent.toFixed(4)} A · ${integrated.maxPower.toFixed(3)} W</dd>
       <dt>Rated</dt><dd>${ratedText}</dd>
       <dt>Efficiency</dt><dd>${eff != null ? `${eff.toFixed(1)} % of the rating` : 'needs a rated capacity'}</dd>`;
-    drawChartSet('view-', samples);
+    if (!viewCharts) viewCharts = buildCharts('view-');
+    setChartData(viewCharts, samples);
     await refreshHistory();
     element('view-session').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -409,22 +414,6 @@
 
   // ---------- Events ----------
 
-  const COLOR_SCHEME_KEY = 'color-scheme';
-  function toggleColorScheme() {
-    const systemDark = matchMedia('(prefers-color-scheme: dark)').matches;
-    let stored = null;
-    try { stored = localStorage.getItem(COLOR_SCHEME_KEY); } catch { /* storage blocked */ }
-    const shown = stored ?? (systemDark ? 'dark' : 'light');
-    const target = shown === 'dark' ? 'light' : 'dark';
-    const next = target === (systemDark ? 'dark' : 'light') ? null : target;
-    try {
-      if (next) localStorage.setItem(COLOR_SCHEME_KEY, next);
-      else localStorage.removeItem(COLOR_SCHEME_KEY);
-    } catch { /* storage blocked */ }
-    document.querySelector('meta[name="color-scheme"]').content = next ?? 'light dark';
-    scheduleDraw();
-  }
-
   function init() {
     if (!('serial' in navigator)) {
       element('unsupported').hidden = false;
@@ -433,7 +422,7 @@
     }
     element('connect').addEventListener('click', connect);
     element('disconnect').addEventListener('click', disconnect);
-    element('theme-toggle').addEventListener('click', toggleColorScheme);
+    Theme.init(rebuildCharts); // Rebuild the charts with the new colors when the scheme changes.
     element('start-test').addEventListener('click', () => startTest(false));
     element('stop-test').addEventListener('click', () => stopTest('manual'));
     element('export-db').addEventListener('click', async () => {
@@ -484,7 +473,6 @@
       saveFile(`tc66-${slug(session.name)}.csv`, sessionCsv(session, await db.getSamples(selectedSessionId)), 'text/csv');
     });
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
-    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleDraw);
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
     scheduleDraw();
     initDatabase();

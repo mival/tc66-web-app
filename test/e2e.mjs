@@ -159,6 +159,17 @@ try {
   await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'index.html')).href });
   await sleep(500);
 
+  // Theme toggle cycles auto -> light -> dark -> auto and sets the meta element.
+  const themeStart = await evaluate(`document.getElementById('theme-toggle').dataset.state`);
+  await click('#theme-toggle');
+  const themeLight = await evaluate(`document.getElementById('theme-toggle').dataset.state + '|' + document.querySelector('meta[name="color-scheme"]').content`);
+  await click('#theme-toggle');
+  const themeDark = await evaluate(`document.getElementById('theme-toggle').dataset.state + '|' + document.querySelector('meta[name="color-scheme"]').content`);
+  await click('#theme-toggle');
+  const themeBack = await evaluate(`document.getElementById('theme-toggle').dataset.state + '|' + document.querySelector('meta[name="color-scheme"]').content`);
+  check('theme cycles auto, light, dark', themeStart === 'auto' && themeLight === 'light|light' && themeDark === 'dark|dark' && themeBack === 'auto|light dark',
+    `${themeStart} ${themeLight} ${themeDark} ${themeBack}`);
+
   await evaluate(`document.getElementById('poll-interval').value = '250'`);
   await click('#connect');
   await sleep(2500);

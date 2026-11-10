@@ -162,19 +162,12 @@ header .status { margin-right: auto; }
 }
 .icon-button svg { grid-area: 1 / 1; transition: transform 0.3s ease, opacity 0.3s ease; }
 
-/* The toggle shows the scheme that a click selects: a moon in light mode, a sun in dark mode.
-   The media query handles "follow the system". The :has() rules handle a stored override. */
-.icon-sun, .label-to-light { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not(:has(meta[name="color-scheme"][content="light"])) {
-    .icon-sun, .label-to-light { display: revert; }
-    .icon-moon, .label-to-dark { display: none; }
-  }
-}
-:root:has(meta[name="color-scheme"][content="dark"]) {
-  .icon-sun, .label-to-light { display: revert; }
-  .icon-moon, .label-to-dark { display: none; }
-}
+/* The toggle shows the current state: an auto icon, a sun (light) or a moon (dark).
+   js/theme.js sets data-state on the button. */
+.icon-auto, .icon-sun, .icon-moon { display: none; }
+[data-theme-toggle][data-state="auto"] .icon-auto,
+[data-theme-toggle][data-state="light"] .icon-sun,
+[data-theme-toggle][data-state="dark"] .icon-moon { display: revert; }
 
 /* ---------- Layout ---------- */
 
@@ -430,3 +423,13 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .file-button:hover { border-color: var(--color-accent); }
 #view-session { margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 12px; }
+
+/* uPlot interactive charts (battery page) */
+.uchart { margin-bottom: 8px; width: 100%; }
+.u-title { font-size: 0.8rem; color: var(--color-muted); font-weight: 600; }
+.u-legend { font-size: 0.8rem; color: var(--color-text); }
+.u-legend .u-marker { width: 10px; height: 10px; }
+.u-legend .u-value { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.u-legend.u-inline .u-series { margin-right: 12px; }
+.u-select { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.u-cursor-x, .u-cursor-y { border-color: var(--color-muted); }
