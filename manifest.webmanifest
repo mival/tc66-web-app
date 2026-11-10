@@ -1,0 +1,13 @@
+{
+  "name": "TC66C Meter",
+  "short_name": "TC66C",
+  "description": "Read the RDTech TC66C USB-C meter and run power bank capacity tests.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#121416",
+  "theme_color": "#1c1f23",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

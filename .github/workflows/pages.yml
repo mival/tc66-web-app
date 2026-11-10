@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: lts/*
       - name: Unit tests
-        run: node --test test/tc66.test.js
+        run: node --test test/tc66.test.js test/db.test.js
       - name: End-to-end test
         run: BROWSER_PATH="$(command -v google-chrome)" node test/e2e.mjs
 
@@ -39,7 +39,7 @@ jobs:
       - name: Copy the page files
         run: |
           mkdir _site
-          cp -r index.html css js _site/
+          cp -r index.html battery.html manifest.webmanifest sw.js icon.svg css js _site/
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site

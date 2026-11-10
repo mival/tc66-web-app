@@ -9,11 +9,13 @@
 
   // Return a step of 1, 2 or 5 times a power of ten that gives about targetTickCount ticks.
   function niceStep(range, targetTickCount) {
+    if (!(range > 0) || !isFinite(range)) return 1; // Guard against a zero or NaN range.
     const roughStep = range / Math.max(1, targetTickCount);
     const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
     const normalized = roughStep / magnitude;
     const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-    return factor * magnitude;
+    const step = factor * magnitude;
+    return step > 0 && isFinite(step) ? step : 1;
   }
 
   function formatTime(totalSeconds) {
@@ -27,8 +29,17 @@
 
   // Canvas cannot parse light-dark(), color-mix() or var(). This function lets the browser compute
   // the CSS color value in the context of an element and returns a plain rgb() color.
+  // The result is cached per value and color scheme. getComputedStyle forces a layout, so the cache
+  // avoids many layouts per frame. The cache clears when the color scheme changes.
   let colorProbe = null;
+  const colorCache = new Map();
+  let colorCacheScheme = null;
   function resolveColor(cssValue) {
+    let scheme = 'light dark';
+    try { scheme = document.querySelector('meta[name="color-scheme"]').content; } catch { /* no meta */ }
+    if (scheme !== colorCacheScheme) { colorCache.clear(); colorCacheScheme = scheme; }
+    const cached = colorCache.get(cssValue);
+    if (cached) return cached;
     if (!colorProbe) {
       colorProbe = document.createElement('span');
       colorProbe.hidden = true;
@@ -36,7 +47,9 @@
     }
     colorProbe.style.color = '';
     colorProbe.style.color = cssValue;
-    return getComputedStyle(colorProbe).color;
+    const resolved = getComputedStyle(colorProbe).color;
+    colorCache.set(cssValue, resolved);
+    return resolved;
   }
 
   // options: { times, values (arrays), timeStart, timeEnd, color, unit, decimals, label }
@@ -101,7 +114,7 @@
     context.textBaseline = 'middle';
     context.textAlign = 'right';
     const valueDecimals = Math.max(0, -Math.floor(Math.log10(valueStep)));
-    for (let value = valueMin; value <= valueMax + valueStep / 2; value += valueStep) {
+    for (let value = valueMin, guard = 0; value <= valueMax + valueStep / 2 && guard < 1000; value += valueStep, guard++) {
       const y = Math.round(toPixelY(value)) + 0.5;
       context.beginPath();
       context.moveTo(PADDING_LEFT, y);
@@ -112,7 +125,7 @@
     context.textAlign = 'center';
     context.textBaseline = 'top';
     const timeStep = niceStep(timeEnd - timeStart, Math.max(2, Math.floor(plotWidth / 90)));
-    for (let time = Math.ceil(timeStart / timeStep) * timeStep; time <= timeEnd; time += timeStep) {
+    for (let time = Math.ceil(timeStart / timeStep) * timeStep, guard = 0; time <= timeEnd && guard < 1000; time += timeStep, guard++) {
       const x = Math.round(toPixelX(time)) + 0.5;
       context.beginPath();
       context.moveTo(x, PADDING_TOP);

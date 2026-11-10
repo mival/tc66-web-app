@@ -13,6 +13,22 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - An "Advanced" console that sends a raw ASCII command and shows the reply as hex.
 - Light and dark theme. The page follows the system setting. The header button selects the other theme for this browser.
 - A layout for phones and tablets.
+- A battery test page (`battery.html`) for power bank capacity. See below.
+- A Progressive Web App (PWA). You can install it and use it offline.
+
+## Battery test
+
+`battery.html` records a discharge test and computes the capacity of a power bank.
+
+- Discharge the power bank through a load. The meter measures the output.
+- The page adds up the charge (mAh) and the energy (Wh) with the trapezoid rule.
+- Enter the rated capacity to see the efficiency against the rating.
+- Automatic start and stop: the test starts when the current rises above a threshold and stops when it falls below one.
+- Each test is saved in the browser with IndexedDB. No server is needed.
+- The "Saved tests" list shows each test. Select one to graph it and read its totals.
+- Export or import all tests as a JSON file. Download a test as CSV.
+
+The data stays in the browser. To see a test on another device, export the JSON and import it there.
 
 ## Use
 
@@ -27,12 +43,17 @@ For the offline recording, set the sample period to the value on the meter. The 
 
 | Path | Content |
 |---|---|
-| `index.html` | Page markup |
+| `index.html` | Meter page markup |
+| `battery.html` | Battery test page markup |
 | `css/style.css` | Styles, light and dark color scheme, phone layout |
 | `js/tc66.js` | AES-256 decryption, packet parsers, CSV export, serial transport |
 | `js/chart.js` | Canvas strip chart |
-| `js/app.js` | Page logic |
-| `test/` | Unit tests, end-to-end test, meter fixtures |
+| `js/app.js` | Meter page logic |
+| `js/db.js` | IndexedDB session store and capacity integrator |
+| `js/battery.js` | Battery test page logic |
+| `js/pwa.js` | Service worker registration |
+| `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
+| `test/` | Unit tests, end-to-end tests, meter fixtures |
 | `research/` | Local research files (not in git): scripts, firmware images |
 
 ## Tests
@@ -40,7 +61,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 Run the unit tests:
 
 ```sh
-node --test test/tc66.test.js
+node --test test/tc66.test.js test/db.test.js
 ```
 
 Run the end-to-end test. It starts headless Chrome with a mock serial port that replays real meter bytes:
@@ -51,7 +72,13 @@ BROWSER_PATH=/path/to/chrome node test/e2e.mjs
 
 Set `SCREENSHOT=1` to keep a screenshot and the saved CSV files.
 
+There is also a battery page end-to-end test. Run it with the same `BROWSER_PATH`:
+
+```sh
+BROWSER_PATH=/path/to/chrome node test/battery.e2e.mjs
+```
+
 ## Deployment
 
-The `Pages` workflow (`.github/workflows/pages.yml`) runs the tests on each push and pull request.
-On a push to `main`, it then publishes `index.html`, `css/` and `js/` to GitHub Pages.
+The `Pages` workflow (`.github/workflows/pages.yml`) runs the unit tests and the meter end-to-end test on each push
+and pull request. On a push to `main`, it then publishes the pages, `css/`, `js/` and the PWA files to GitHub Pages.
