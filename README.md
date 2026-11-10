@@ -11,6 +11,8 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - Download of the offline recording (`gtrec`) to CSV or raw `.bin`, with a sample period that you set.
 - Device information: model, firmware, serial, run count and the two mAh/mWh groups.
 - An "Advanced" console that sends a raw ASCII command and shows the reply as hex.
+- Light and dark theme. The page follows the system setting. The header button selects the other theme for this browser.
+- A layout for phones and tablets.
 
 ## Use
 
@@ -26,7 +28,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 | Path | Content |
 |---|---|
 | `index.html` | Page markup |
-| `css/style.css` | Styles, light and dark color scheme |
+| `css/style.css` | Styles, light and dark color scheme, phone layout |
 | `js/tc66.js` | AES-256 decryption, packet parsers, CSV export, serial transport |
 | `js/chart.js` | Canvas strip chart |
 | `js/app.js` | Page logic |

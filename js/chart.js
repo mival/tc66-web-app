@@ -25,6 +25,20 @@
     return hours ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
   }
 
+  // Canvas cannot parse light-dark(), color-mix() or var(). This function lets the browser compute
+  // the CSS color value in the context of an element and returns a plain rgb() color.
+  let colorProbe = null;
+  function resolveColor(cssValue) {
+    if (!colorProbe) {
+      colorProbe = document.createElement('span');
+      colorProbe.hidden = true;
+      document.body.append(colorProbe);
+    }
+    colorProbe.style.color = '';
+    colorProbe.style.color = cssValue;
+    return getComputedStyle(colorProbe).color;
+  }
+
   // options: { times, values (arrays), timeStart, timeEnd, color, unit, decimals, label }
   function drawStrip(canvas, options) {
     const pixelRatio = window.devicePixelRatio || 1;
@@ -40,8 +54,8 @@
     context.clearRect(0, 0, width, height);
 
     const style = getComputedStyle(canvas);
-    const gridColor = style.getPropertyValue('--chart-grid').trim() || '#8884';
-    const textColor = style.getPropertyValue('--chart-text').trim() || '#888';
+    const gridColor = resolveColor('var(--chart-grid)') || '#8884';
+    const textColor = resolveColor('var(--chart-text)') || '#888';
 
     const plotWidth = width - PADDING_LEFT - PADDING_RIGHT;
     const plotHeight = height - PADDING_TOP - PADDING_BOTTOM;
@@ -116,19 +130,34 @@
     context.lineWidth = 1.5;
     context.lineJoin = 'round';
     context.beginPath();
-    let lineStarted = false;
+    let firstX = null;
+    let lastX = null;
     for (let i = 0; i < times.length; i++) {
       if (times[i] < timeStart - timeStep || times[i] > timeEnd + timeStep) continue;
       const x = toPixelX(times[i]);
       const y = toPixelY(values[i]);
-      if (lineStarted) {
-        context.lineTo(x, y);
-      } else {
+      if (firstX === null) {
         context.moveTo(x, y);
-        lineStarted = true;
+        firstX = x;
+      } else {
+        context.lineTo(x, y);
       }
+      lastX = x;
     }
     context.stroke();
+    // Soft area fill below the line.
+    if (firstX !== null && lastX > firstX) {
+      const bottom = PADDING_TOP + plotHeight;
+      context.lineTo(lastX, bottom);
+      context.lineTo(firstX, bottom);
+      context.closePath();
+      const gradient = context.createLinearGradient(0, PADDING_TOP, 0, bottom);
+      gradient.addColorStop(0, color);
+      gradient.addColorStop(1, 'transparent');
+      context.globalAlpha = 0.18;
+      context.fillStyle = gradient;
+      context.fill();
+    }
     context.restore();
 
     // Last value.
@@ -140,5 +169,5 @@
     }
   }
 
-  globalScope.Chart = { drawStrip, formatTime };
+  globalScope.Chart = { drawStrip, formatTime, resolveColor };
 })(globalThis);

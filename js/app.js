@@ -217,14 +217,13 @@
   }
 
   function drawCharts(charts, times, rows, timeStart, timeEnd) {
-    const rootStyle = getComputedStyle(document.documentElement);
     for (const chart of charts) {
       Chart.drawStrip(element(chart.canvasId), {
         times,
         values: rows.map((row) => row[chart.field]),
         timeStart,
         timeEnd,
-        color: rootStyle.getPropertyValue(chart.colorToken).trim(),
+        color: Chart.resolveColor(`var(${chart.colorToken})`),
         unit: chart.unit,
         decimals: chart.decimals,
         label: chart.label,
@@ -367,6 +366,45 @@
 
   // ---------- Events ----------
 
+  // ---------- Color scheme toggle ----------
+
+  // Two states: follow the system, or the opposite of the system.
+  // localStorage keeps only an override. The meta element applies it (see the inline script in index.html).
+  const COLOR_SCHEME_KEY = 'color-scheme';
+  const systemDarkQuery = matchMedia('(prefers-color-scheme: dark)');
+
+  function readStoredScheme() {
+    try { return localStorage.getItem(COLOR_SCHEME_KEY); } catch { return null; }
+  }
+
+  function applyColorScheme(storedScheme) {
+    document.querySelector('meta[name="color-scheme"]').content = storedScheme ?? 'light dark';
+    scheduleDraw();
+  }
+
+  function toggleColorScheme() {
+    const systemScheme = systemDarkQuery.matches ? 'dark' : 'light';
+    const shownScheme = readStoredScheme() ?? systemScheme;
+    const targetScheme = shownScheme === 'dark' ? 'light' : 'dark';
+    // When the target is the system scheme, remove the override. Then the page follows the system again.
+    const newStoredScheme = targetScheme === systemScheme ? null : targetScheme;
+    try {
+      if (newStoredScheme) localStorage.setItem(COLOR_SCHEME_KEY, newStoredScheme);
+      else localStorage.removeItem(COLOR_SCHEME_KEY);
+    } catch {
+      // Storage is blocked. The page still changes the scheme for this visit.
+    }
+    applyColorScheme(newStoredScheme);
+  }
+
+  function initThemeToggle() {
+    element('theme-toggle').addEventListener('click', toggleColorScheme);
+    // Keep other tabs of the page in sync.
+    window.addEventListener('storage', (event) => {
+      if (event.key === COLOR_SCHEME_KEY || event.key === null) applyColorScheme(readStoredScheme());
+    });
+  }
+
   function init() {
     if (!('serial' in navigator)) {
       element('unsupported').hidden = false;
@@ -399,6 +437,7 @@
     element('raw-form').addEventListener('submit', sendRawCommand);
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleDraw);
+    initThemeToggle();
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
     scheduleDraw();
   }

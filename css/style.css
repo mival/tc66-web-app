@@ -1,18 +1,24 @@
 :root {
   color-scheme: light dark;
 
-  --background-light: #f6f7f9;
-  --background-dark: #121416;
+  /* The theme toggle sets the meta element. These rules map it to the color-scheme property. */
+  &:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
+  &:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
+
+  --background-light: #f3f5f8;
+  --background-dark: #0f1114;
   --panel-light: #ffffff;
-  --panel-dark: #1c1f23;
+  --panel-dark: #1a1d22;
   --text-light: #1b1d21;
   --text-dark: #e6e8eb;
   --muted-light: #5d6570;
   --muted-dark: #9aa3ad;
   --border-light: #dde1e6;
-  --border-dark: #2e333a;
+  --border-dark: #2c3138;
   --accent-light: #0b62d6;
   --accent-dark: #5aa2ff;
+  --on-accent-light: #ffffff;
+  --on-accent-dark: #0b1a2e;
   --danger-light: #b3261e;
   --danger-dark: #ff8a80;
   --success-light: #1a7f37;
@@ -24,12 +30,14 @@
   --power-light: #7c3aed;
   --power-dark: #c4a1ff;
 
+  /* Fallback for browsers without light-dark(): follow the system preference only. */
   --color-background: var(--background-light);
   --color-panel: var(--panel-light);
   --color-text: var(--text-light);
   --color-muted: var(--muted-light);
   --color-border: var(--border-light);
   --color-accent: var(--accent-light);
+  --color-on-accent: var(--on-accent-light);
   --color-danger: var(--danger-light);
   --color-success: var(--success-light);
   --color-voltage: var(--voltage-light);
@@ -43,6 +51,7 @@
     --color-muted: var(--muted-dark);
     --color-border: var(--border-dark);
     --color-accent: var(--accent-dark);
+    --color-on-accent: var(--on-accent-dark);
     --color-danger: var(--danger-dark);
     --color-success: var(--success-dark);
     --color-voltage: var(--voltage-dark);
@@ -50,124 +59,277 @@
     --color-power: var(--power-dark);
   }
 
+  /* light-dark() follows the color-scheme property, so the theme toggle works. */
+  @supports (color: light-dark(white, black)) {
+    --color-background: light-dark(var(--background-light), var(--background-dark));
+    --color-panel: light-dark(var(--panel-light), var(--panel-dark));
+    --color-text: light-dark(var(--text-light), var(--text-dark));
+    --color-muted: light-dark(var(--muted-light), var(--muted-dark));
+    --color-border: light-dark(var(--border-light), var(--border-dark));
+    --color-accent: light-dark(var(--accent-light), var(--accent-dark));
+    --color-on-accent: light-dark(var(--on-accent-light), var(--on-accent-dark));
+    --color-danger: light-dark(var(--danger-light), var(--danger-dark));
+    --color-success: light-dark(var(--success-light), var(--success-dark));
+    --color-voltage: light-dark(var(--voltage-light), var(--voltage-dark));
+    --color-current: light-dark(var(--current-light), var(--current-dark));
+    --color-power: light-dark(var(--power-light), var(--power-dark));
+  }
+
   --chart-grid: color-mix(in srgb, var(--color-muted) 25%, transparent);
   --chart-text: var(--color-muted);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+  --radius: 12px;
+  --gutter: 16px;
+  --target-size: 32px;
+  @media (pointer: coarse) { --target-size: 44px; }
+  @media (max-width: 480px) { --gutter: 10px; }
+
   accent-color: var(--color-accent);
+  scrollbar-color: color-mix(in srgb, var(--color-muted) 60%, transparent) transparent;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 body {
   margin: 0;
-  background: var(--color-background);
+  min-height: 100dvh;
+  background:
+    radial-gradient(60rem 30rem at 100% -10%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 70%),
+    radial-gradient(50rem 25rem at -10% 0%, color-mix(in srgb, var(--color-power) 8%, transparent), transparent 70%),
+    var(--color-background);
   color: var(--color-text);
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
+
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+
+/* ---------- Header ---------- */
 
 header {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px 16px;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px max(var(--gutter), env(safe-area-inset-right, 0px)) 10px max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-panel);
+  background: color-mix(in srgb, var(--color-panel) 80%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 10;
 }
-header h1 { font-size: 1.1rem; margin: 0; }
+header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--color-voltage), var(--color-power));
+  color: #fff;
+}
+header .status { margin-right: auto; }
+.header-actions { flex-wrap: nowrap; }
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  min-width: var(--target-size);
+  border-radius: 50%;
+}
+.icon-button svg { grid-area: 1 / 1; transition: transform 0.3s ease, opacity 0.3s ease; }
+
+/* The toggle shows the scheme that a click selects: a moon in light mode, a sun in dark mode.
+   The media query handles "follow the system". The :has() rules handle a stored override. */
+.icon-sun, .label-to-light { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not(:has(meta[name="color-scheme"][content="light"])) {
+    .icon-sun, .label-to-light { display: revert; }
+    .icon-moon, .label-to-dark { display: none; }
+  }
+}
+:root:has(meta[name="color-scheme"][content="dark"]) {
+  .icon-sun, .label-to-light { display: revert; }
+  .icon-moon, .label-to-dark { display: none; }
+}
+
+/* ---------- Layout ---------- */
 
 main {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px;
+  padding: var(--gutter);
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  padding-bottom: max(var(--gutter), env(safe-area-inset-bottom, 0px));
   display: grid;
-  gap: 16px;
+  gap: var(--gutter);
 }
 
 section {
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   padding: 14px 16px;
   min-width: 0;
+  container-type: inline-size;
 }
 
 h2 {
-  font-size: 0.95rem;
-  margin: 0 0 10px;
+  font-size: 0.8rem;
+  margin: 0 0 12px;
   color: var(--color-muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
+/* ---------- Controls ---------- */
+
 button, select, input { font: inherit; color: inherit; }
+button, select, input:not([type="checkbox"], [type="radio"], [type="file"]) { min-height: var(--target-size); }
 button {
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: 8px;
+  padding: 4px 12px;
   cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
 }
-button:hover:not(:disabled) { border-color: var(--color-accent); }
+button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-panel));
+}
+button:active:not(:disabled) { transform: scale(0.97); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.primary {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: var(--color-background);
+  color: var(--color-on-accent);
   font-weight: 600;
 }
+button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent) 85%, var(--color-text)); }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 select, input {
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 5px 8px;
+  border-radius: 8px;
+  padding: 4px 8px;
 }
 input[type="number"] { width: 6em; }
 label { display: inline-flex; gap: 6px; align-items: center; }
 
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
+/* ---------- Status ---------- */
+
 .status { display: flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: 0.9rem; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-muted); flex: none; }
-.dot.on { background: var(--color-success); }
+.dot.on { background: var(--color-success); animation: pulse 2s ease-out infinite; }
 .dot.error { background: var(--color-danger); }
+@keyframes pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 60%, transparent); }
+  to { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* ---------- Live readouts ---------- */
 
 .readouts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
-.readout { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; }
-.readout .label { font-size: 0.8rem; color: var(--color-muted); }
-.readout .value { font-size: 2rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.readout {
+  --tint: var(--color-accent);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tint) 30%, var(--color-border));
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 12%, var(--color-panel)), var(--color-panel) 70%);
+}
+.readout::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--tint);
+}
+.readout.voltage { --tint: var(--color-voltage); }
+.readout.current { --tint: var(--color-current); }
+.readout.power { --tint: var(--color-power); }
+.readout .label { font-size: 0.75rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.readout .value {
+  font-size: clamp(1.5rem, 1rem + 2vw, 2.25rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--tint);
+  letter-spacing: -0.01em;
+}
 .readout .unit { font-size: 1rem; color: var(--color-muted); margin-left: 4px; }
-.readout.voltage .value { color: var(--color-voltage); }
-.readout.current .value { color: var(--color-current); }
-.readout.power .value { color: var(--color-power); }
 
 .secondary-values {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 6px 16px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 14px;
   font-variant-numeric: tabular-nums;
+}
+.secondary-values > div {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-muted) 8%, transparent);
 }
 .secondary-values span { color: var(--color-muted); }
 
-.charts { display: grid; gap: 4px; margin-top: 10px; }
+.charts { display: grid; gap: 4px; margin-top: 12px; }
 canvas.strip { display: block; width: 100%; height: 130px; }
+
+/* Narrow sections, for example on a phone. */
+@container (max-width: 520px) {
+  .readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .readout { padding: 8px 8px 6px; }
+  .readout .value { display: block; white-space: nowrap; font-size: clamp(0.9rem, 5.5cqi, 1.5rem); }
+  .readout .unit { display: none; }
+  .readout .label::after { content: " (" attr(data-unit) ")"; }
+  .secondary-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  canvas.strip { height: 110px; }
+  .row > button, .row > label { flex: 1 1 auto; }
+  .row > label > select { flex: 1; }
+  .row > label > input[type="number"] { flex: 1; }
+}
+
+/* ---------- Device and other sections ---------- */
 
 dl.info {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+  gap: 6px 16px;
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -176,8 +338,8 @@ dl.info dd { margin: 0; }
 
 .two-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--gutter);
 }
 
 .hint { color: var(--color-muted); font-size: 0.85rem; margin: 8px 0 0; }
@@ -187,12 +349,32 @@ dl.info dd { margin: 0; }
 pre {
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px;
   overflow: auto;
   max-height: 260px;
   font-size: 0.8rem;
   margin: 8px 0 0;
+  overflow-wrap: normal;
 }
 
-details summary { cursor: pointer; color: var(--color-muted); font-weight: 600; }
+details summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-weight: 600;
+  min-height: var(--target-size);
+  display: flex;
+  align-items: center;
+}
+
+/* ---------- Narrow header ---------- */
+
+@media (max-width: 560px) {
+  header .status { order: 3; width: 100%; font-size: 0.85rem; }
+  header h1 { margin-right: auto; }
+  header .status { margin-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

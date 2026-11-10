@@ -2,20 +2,32 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<script>
+// Apply the stored color scheme before the first paint. js/app.js has the toggle logic.
+try { document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem('color-scheme') ?? 'light dark'; } catch {}
+</script>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1f23" media="(prefers-color-scheme: dark)">
 <title>TC66C Meter</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header>
-  <h1>TC66C Meter</h1>
+  <h1><span class="logo" aria-hidden="true">⚡</span>TC66C Meter</h1>
   <div class="status" role="status" aria-live="polite">
     <span class="dot" id="status-dot"></span><span id="status-text">Not connected</span>
   </div>
-  <div class="row">
+  <div class="row header-actions">
     <button class="primary" id="connect">Connect</button>
     <button id="disconnect" disabled>Disconnect</button>
+    <button class="icon-button" id="theme-toggle" type="button">
+      <svg class="icon-moon" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></svg>
+      <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></svg>
+      <span class="visually-hidden label-to-dark">Switch to dark theme</span>
+      <span class="visually-hidden label-to-light">Switch to light theme</span>
+    </button>
   </div>
 </header>
 <main>
@@ -26,9 +38,9 @@
   <section aria-labelledby="live-heading">
     <h2 id="live-heading">Live</h2>
     <div class="readouts">
-      <div class="readout voltage"><div class="label">Voltage</div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
-      <div class="readout current"><div class="label">Current</div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
-      <div class="readout power"><div class="label">Power</div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
+      <div class="readout voltage"><div class="label" data-unit="V">Voltage</div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
+      <div class="readout current"><div class="label" data-unit="A">Current</div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
+      <div class="readout power"><div class="label" data-unit="W">Power</div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
     </div>
     <div class="secondary-values">
       <div><span>Load </span><b id="value-resistance">–</b> Ω</div>
