@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>TC66C Meter</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1>TC66C Meter</h1>
+  <div class="status" role="status" aria-live="polite">
+    <span class="dot" id="status-dot"></span><span id="status-text">Not connected</span>
+  </div>
+  <div class="row">
+    <button class="primary" id="connect">Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+  </div>
+</header>
+<main>
+  <section id="unsupported" class="error-message" hidden>
+    This browser has no Web Serial API. Use Chrome or Edge (or Firefox 151+), and open the page from a local file or from localhost/https.
+  </section>
+
+  <section aria-labelledby="live-heading">
+    <h2 id="live-heading">Live</h2>
+    <div class="readouts">
+      <div class="readout voltage"><div class="label">Voltage</div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
+      <div class="readout current"><div class="label">Current</div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
+      <div class="readout power"><div class="label">Power</div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
+    </div>
+    <div class="secondary-values">
+      <div><span>Load </span><b id="value-resistance">–</b> Ω</div>
+      <div><span>Temp </span><b id="value-temperature">–</b> °C</div>
+      <div><span>D+ </span><b id="value-data-plus">–</b> V</div>
+      <div><span>D− </span><b id="value-data-minus">–</b> V</div>
+      <div><span>Samples </span><b id="value-sample-count">0</b></div>
+    </div>
+    <div class="row">
+      <label>Poll every
+        <select id="poll-interval">
+          <option value="250">0.25 s</option>
+          <option value="500" selected>0.5 s</option>
+          <option value="1000">1 s</option>
+          <option value="2000">2 s</option>
+          <option value="5000">5 s</option>
+        </select>
+      </label>
+      <label>Show
+        <select id="chart-window">
+          <option value="60">1 min</option>
+          <option value="300" selected>5 min</option>
+          <option value="900">15 min</option>
+          <option value="3600">1 h</option>
+          <option value="0">all</option>
+        </select>
+      </label>
+      <button id="pause" disabled>Pause</button>
+      <button id="clear">Clear samples</button>
+      <button id="save-live" disabled>Save live CSV</button>
+    </div>
+    <div class="charts" role="img" aria-label="Charts of voltage, current and power over time. The current values are shown above.">
+      <canvas class="strip" id="chart-voltage"></canvas>
+      <canvas class="strip" id="chart-current"></canvas>
+      <canvas class="strip" id="chart-power"></canvas>
+    </div>
+  </section>
+
+  <div class="two-columns">
+    <section aria-labelledby="device-heading">
+      <h2 id="device-heading">Device</h2>
+      <dl class="info">
+        <dt>Model</dt><dd id="device-model">–</dd>
+        <dt>Firmware</dt><dd id="device-firmware">–</dd>
+        <dt>Serial</dt><dd id="device-serial">–</dd>
+        <dt>Run count</dt><dd id="device-run-count">–</dd>
+        <dt>Group 0</dt><dd id="device-group-0">–</dd>
+        <dt>Group 1</dt><dd id="device-group-1">–</dd>
+      </dl>
+      <p class="hint">Reset the groups with the buttons on the meter. No serial command for this is known.</p>
+    </section>
+
+    <section aria-labelledby="screen-heading">
+      <h2 id="screen-heading">Meter screen</h2>
+      <div class="row">
+        <button data-command="lastp" disabled>◀ Previous page</button>
+        <button data-command="nextp" disabled>Next page ▶</button>
+        <button data-command="rotat" disabled>⟳ Rotate</button>
+      </div>
+    </section>
+  </div>
+
+  <section aria-labelledby="recording-heading">
+    <h2 id="recording-heading">Offline recording</h2>
+    <div class="row">
+      <label>Sample period <input type="number" id="sample-period" min="1" max="3600" step="1" value="10"> s</label>
+      <button id="download-recording" disabled>Download recording</button>
+      <button id="save-recording-csv" disabled>Save CSV</button>
+      <button id="save-recording-bin" disabled>Save raw .bin</button>
+      <span id="recording-progress" class="hint" role="status"></span>
+    </div>
+    <p class="hint">Set the sample period to the value on the meter. The meter does not send it.</p>
+    <div class="summary" id="recording-summary" hidden></div>
+    <div class="charts" id="recording-charts" hidden role="img" aria-label="Charts of the offline recording. The summary is shown above.">
+      <canvas class="strip" id="recording-chart-voltage"></canvas>
+      <canvas class="strip" id="recording-chart-current"></canvas>
+      <canvas class="strip" id="recording-chart-power"></canvas>
+    </div>
+  </section>
+
+  <section aria-labelledby="raw-heading">
+    <details>
+      <summary id="raw-heading">Advanced: raw command</summary>
+      <p class="hint">Sends ASCII text with no terminator, then shows all bytes until 0.5 s of silence. <b>update</b> puts the meter into the bootloader.</p>
+      <form class="row" id="raw-form">
+        <input id="raw-command" placeholder="e.g. query" autocomplete="off" spellcheck="false" maxlength="64">
+        <button id="raw-send" type="submit" disabled>Send</button>
+      </form>
+      <pre id="raw-output" hidden></pre>
+    </details>
+  </section>
+
+  <section aria-labelledby="log-heading">
+    <h2 id="log-heading">Log</h2>
+    <pre id="log" aria-live="polite"></pre>
+  </section>
+</main>
+<script src="js/tc66.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
