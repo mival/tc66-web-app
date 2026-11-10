@@ -7,6 +7,7 @@ const APP_SHELL = [
   './',
   'index.html',
   'battery.html',
+  'help.html',
   'css/style.css',
   'js/tc66.js',
   'js/chart.js',

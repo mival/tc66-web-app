@@ -477,42 +477,62 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 15px;
-  height: 15px;
-  margin-left: 4px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  min-width: 0;
+  flex: none;
+  margin-left: 5px;
   padding: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-muted) 45%, transparent);
   border-radius: 50%;
   background: transparent;
   color: var(--color-muted);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 700;
   line-height: 1;
-  cursor: help;
+  cursor: pointer;
   vertical-align: middle;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 .readout .label .help-btn { text-transform: none; }
-.help-btn:hover,
-.help-btn:focus-visible {
+.help-btn:hover {
   color: var(--color-accent);
   border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 .help-btn:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
+  outline: none;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .help-pop {
   max-width: 260px;
   margin: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  border-radius: 10px;
   background: var(--color-panel);
   color: var(--color-text);
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 0.8rem;
-  line-height: 1.4;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  line-height: 1.45;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  /* Fade in on open where the browser supports it. */
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.14s ease, transform 0.14s ease, overlay 0.14s allow-discrete, display 0.14s allow-discrete;
+}
+.help-pop:popover-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+@starting-style {
+  .help-pop:popover-open {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 /* Place the popover under its button where the browser supports it. */
@@ -520,6 +540,91 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   .help-pop {
     position-area: bottom span-right;
     position-try-fallbacks: flip-block, flip-inline;
-    margin-top: 6px;
+    margin-top: 8px;
   }
+  /* A small caret that points up at the button. */
+  .help-pop::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: 14px;
+    width: 9px;
+    height: 9px;
+    background: var(--color-panel);
+    border-top: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+    border-left: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+    transform: rotate(45deg);
+  }
+}
+
+/* Help page. */
+.prose { max-width: 760px; }
+.prose section { margin-bottom: 26px; }
+.prose h2 { margin-bottom: 8px; }
+.prose p { line-height: 1.55; margin: 8px 0; }
+.prose ul, .prose ol { line-height: 1.55; padding-left: 20px; margin: 8px 0; }
+.prose li { margin: 4px 0; }
+.prose code {
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--color-muted) 14%, transparent);
+}
+
+.device-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+.device-figure,
+.photo-slot {
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-panel);
+  padding: 14px;
+  text-align: center;
+}
+.device-figure svg { width: 100%; height: auto; }
+.device-figure figcaption,
+.photo-slot figcaption {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.photo-slot { display: flex; flex-direction: column; }
+.photo-img { width: 100%; height: auto; border-radius: 8px; }
+.photo-ph { display: none; }
+.photo-slot.is-empty .photo-img { display: none; }
+.photo-slot.is-empty .photo-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 150px;
+  border: 2px dashed color-mix(in srgb, var(--color-muted) 40%, transparent);
+  border-radius: 8px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.link-list { list-style: none; padding-left: 0; }
+.link-list li { margin: 6px 0; }
+.link-list a { color: var(--color-accent); }
+
+/* A small sample of the help button, shown in the text. */
+.q-sample {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-muted) 45%, transparent);
+  border-radius: 50%;
+  color: var(--color-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  vertical-align: middle;
 }

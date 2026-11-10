@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<script>
+// Apply the stored color scheme before the first paint. js/theme.js has the toggle logic.
+try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta[name="color-scheme"]').content = (s === 'light' || s === 'dark') ? s : 'light dark'; } catch {}
+</script>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1f23" media="(prefers-color-scheme: dark)">
+<title>TC66C Help</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1><span class="logo" aria-hidden="true">❔</span>Help</h1>
+  <nav class="page-nav"><a href="index.html">Meter</a> · <a href="battery.html">Battery test</a> · <span aria-current="page">Help</span></nav>
+  <div class="row header-actions">
+    <button class="icon-button" id="theme-toggle" data-theme-toggle type="button" aria-label="Theme: auto">
+      <svg class="icon-auto" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" /></svg>
+      <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></svg>
+      <svg class="icon-moon" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></svg>
+      <span class="visually-hidden" data-theme-label>Theme: auto</span>
+    </button>
+  </div>
+</header>
+<main class="prose">
+  <section aria-labelledby="about-heading">
+    <h2 id="about-heading">About this app</h2>
+    <p>
+      This web page reads the <strong>RDTech TC66C</strong> USB-C power meter in your browser.
+      It uses the Web Serial API, so it needs no install and no server.
+      You connect the meter over USB and see the live values, the stored recording and a battery test.
+    </p>
+    <ul>
+      <li><strong>Meter page</strong> shows live voltage, current, power and more, with charts.</li>
+      <li><strong>Battery test page</strong> records a discharge and computes the capacity of a power bank.</li>
+      <li>The app is a Progressive Web App (PWA). You can install it and use it offline.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="device-heading">
+    <h2 id="device-heading">The device</h2>
+    <div class="device-media">
+      <figure class="device-figure">
+        <svg viewBox="0 0 320 170" role="img" aria-labelledby="device-svg-title">
+          <title id="device-svg-title">Drawing of the TC66C USB-C meter</title>
+          <!-- Left USB-C plug -->
+          <rect x="8" y="72" width="34" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
+          <rect x="34" y="78" width="22" height="14" rx="7" fill="var(--color-muted)" opacity="0.6" />
+          <!-- Body -->
+          <rect x="52" y="24" width="216" height="122" rx="16"
+                fill="var(--color-panel)" stroke="var(--color-border)" stroke-width="2" />
+          <!-- Right USB-C port (recessed) -->
+          <rect x="268" y="72" width="30" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
+          <rect x="276" y="79" width="18" height="12" rx="6" fill="#0c0f14" />
+          <!-- Screen -->
+          <rect x="70" y="40" width="180" height="90" rx="10" fill="#0c0f14" stroke="var(--color-border)" stroke-width="1" />
+          <!-- Screen content -->
+          <text x="84" y="70" fill="#e8edf3" font-family="monospace" font-size="24" font-weight="700">5.02</text>
+          <text x="150" y="70" fill="#9aa4b0" font-family="monospace" font-size="14">V</text>
+          <text x="84" y="96" fill="#e8edf3" font-family="monospace" font-size="18">1.48</text>
+          <text x="134" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">A</text>
+          <text x="172" y="96" fill="#e8edf3" font-family="monospace" font-size="18">7.43</text>
+          <text x="222" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">W</text>
+          <circle cx="86" cy="116" r="5" fill="var(--color-voltage)" />
+          <circle cx="104" cy="116" r="5" fill="var(--color-current)" />
+          <circle cx="122" cy="116" r="5" fill="var(--color-power)" />
+          <rect x="150" y="111" width="86" height="10" rx="5" fill="var(--color-muted)" opacity="0.4" />
+        </svg>
+        <figcaption>A stylized TC66C. It has a USB-C plug and a USB-C port, with a color screen.</figcaption>
+      </figure>
+
+      <figure class="photo-slot">
+        <img src="img/tc66c.jpg" alt="Photo of the TC66C meter" class="photo-img"
+             onerror="this.closest('.photo-slot').classList.add('is-empty')">
+        <div class="photo-ph" aria-hidden="true">Photo slot</div>
+        <figcaption>Add a real photo at <code>img/tc66c.jpg</code> to replace this slot.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="start-heading">
+    <h2 id="start-heading">Quick start</h2>
+    <ol>
+      <li>Connect the meter to the computer with a USB cable.</li>
+      <li>Open the app in Chrome or Edge (or Firefox 151+).</li>
+      <li>Close other programs that use the port.</li>
+      <li>Go to the <a href="index.html">Meter page</a> and click <strong>Connect</strong>.</li>
+      <li>Select "GD32 Virtual Com Port" in the browser dialog.</li>
+    </ol>
+    <p>On the Meter page, each value has a small <span class="q-sample">?</span> button that explains it.</p>
+  </section>
+
+  <section aria-labelledby="links-heading">
+    <h2 id="links-heading">Links and references</h2>
+    <ul class="link-list">
+      <li><a href="https://mival.github.io/tc66-web-app/" target="_blank" rel="noopener">Online version of this app</a></li>
+      <li><a href="https://sigrok.org/wiki/RDTech_TC66C" target="_blank" rel="noopener">sigrok wiki: RDTech TC66C protocol</a></li>
+      <li><a href="https://lygte-info.dk/review/USBmeter%20RD%20Tech%20USB%20Meter%20TC66C%20UK.html" target="_blank" rel="noopener">lygte-info: TC66C review</a></li>
+      <li><a href="https://pypi.org/project/tc66-serial/" target="_blank" rel="noopener">tc66-serial: a Python library for the meter</a></li>
+      <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API" target="_blank" rel="noopener">MDN: Web Serial API</a></li>
+    </ul>
+  </section>
+</main>
+<footer class="app-foot">
+  <span class="app-version" data-app-version>dev</span>
+  <button class="link-button" id="app-update" data-app-update type="button" hidden>Update available — reload</button>
+</footer>
+<script src="js/version.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/pwa.js"></script>
+<script src="js/update.js"></script>
+<script>Theme.init();</script>
+</body>
+</html>

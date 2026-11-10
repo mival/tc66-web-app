@@ -39,7 +39,8 @@ jobs:
       - name: Copy the page files
         run: |
           mkdir _site
-          cp -r index.html battery.html manifest.webmanifest sw.js icon.svg version.json css js _site/
+          cp -r index.html battery.html help.html manifest.webmanifest sw.js icon.svg version.json css js _site/
+          [ -d img ] && cp -r img _site/ || true
       # Write the git commit and the date into the build.
       # The page shows the version. The service worker gets a new cache name.
       - name: Inject the build version
