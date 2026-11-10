@@ -121,6 +121,11 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <pre id="log" aria-live="polite"></pre>
   </section>
 </main>
+<footer class="app-foot">
+  <span class="app-version" data-app-version>dev</span>
+  <button class="link-button" id="app-update" data-app-update type="button" hidden>Update available — reload</button>
+</footer>
+<script src="js/version.js"></script>
 <script src="js/tc66.js"></script>
 <script src="js/vendor/uplot/uPlot.iife.min.js"></script>
 <script src="js/uchart.js"></script>
@@ -128,5 +133,6 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <script src="js/db.js"></script>
 <script src="js/battery.js"></script>
 <script src="js/pwa.js"></script>
+<script src="js/update.js"></script>
 </body>
 </html>

@@ -186,10 +186,16 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <pre id="log" aria-live="polite"></pre>
   </section>
 </main>
+<footer class="app-foot">
+  <span class="app-version" data-app-version>dev</span>
+  <button class="link-button" id="app-update" data-app-update type="button" hidden>Update available — reload</button>
+</footer>
+<script src="js/version.js"></script>
 <script src="js/tc66.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa.js"></script>
+<script src="js/update.js"></script>
 </body>
 </html>

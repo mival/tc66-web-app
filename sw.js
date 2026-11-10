@@ -1,6 +1,8 @@
 // Service worker: cache the app shell for offline use.
 // Change CACHE_VERSION to ship new files.
-const CACHE_VERSION = 'tc66-v3';
+// The deploy workflow replaces the version name with the git commit.
+// A new name makes the service worker cache the new files.
+const CACHE_VERSION = 'tc66-dev';
 const APP_SHELL = [
   './',
   'index.html',
@@ -13,6 +15,8 @@ const APP_SHELL = [
   'js/battery.js',
   'js/uchart.js',
   'js/theme.js',
+  'js/version.js',
+  'js/update.js',
   'js/pwa.js',
   'js/vendor/uplot/uPlot.iife.min.js',
   'js/vendor/uplot/uPlot.min.css',
@@ -21,7 +25,13 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  // Do not skip the wait here. The page asks the user first.
+  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)));
+});
+
+// The page sends this message when the user clicks "Update".
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,7 +45,10 @@ self.addEventListener('activate', (event) => {
 // Serve same-origin GET requests from the cache first, then the network.
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Let the version check go to the network. It must not use the cache.
+  if (url.pathname.endsWith('/version.json')) return;
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

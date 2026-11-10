@@ -39,7 +39,16 @@ jobs:
       - name: Copy the page files
         run: |
           mkdir _site
-          cp -r index.html battery.html manifest.webmanifest sw.js icon.svg css js _site/
+          cp -r index.html battery.html manifest.webmanifest sw.js icon.svg version.json css js _site/
+      # Write the git commit and the date into the build.
+      # The page shows the version. The service worker gets a new cache name.
+      - name: Inject the build version
+        run: |
+          VERSION="${GITHUB_SHA::7}"
+          DATE="$(date -u +%Y-%m-%d)"
+          printf "window.APP_VERSION = { commit: '%s', date: '%s' };\n" "$VERSION" "$DATE" > _site/js/version.js
+          printf '{ "commit": "%s", "date": "%s" }\n' "$VERSION" "$DATE" > _site/version.json
+          sed -i "s/const CACHE_VERSION = '[^']*';/const CACHE_VERSION = 'tc66-$VERSION';/" _site/sw.js
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site

@@ -15,6 +15,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - A layout for phones and tablets.
 - A battery test page (`battery.html`) for power bank capacity. See below.
 - A Progressive Web App (PWA). You can install it and use it offline.
+- A version badge in the footer. The app checks for a new version and shows an "Update" button.
 
 ## Battery test
 
@@ -56,6 +57,9 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `js/battery.js` | Battery test page logic |
 | `js/theme.js` | Color scheme toggle (auto, light, dark) |
 | `js/pwa.js` | Service worker registration |
+| `js/version.js` | Build version, set by the deploy workflow |
+| `js/update.js` | Version badge, version check and update button |
+| `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
 | `test/` | Unit tests, end-to-end tests, meter fixtures |
 | `research/` | Local research files (not in git): scripts, firmware images |
@@ -86,3 +90,7 @@ BROWSER_PATH=/path/to/chrome node test/battery.e2e.mjs
 
 The `Pages` workflow (`.github/workflows/pages.yml`) runs the unit tests and the meter end-to-end test on each push
 and pull request. On a push to `main`, it then publishes the pages, `css/`, `js/` and the PWA files to GitHub Pages.
+
+The build step writes the git commit and the date into `js/version.js` and `version.json`. It also sets a new service
+worker cache name. The page shows the version in the footer. The page fetches `version.json` to find a new version.
+When a new version is ready, the page shows an "Update" button. The button activates the new service worker and reloads.
