@@ -74,8 +74,15 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <div class="tile"><div class="label">Elapsed</div><span class="value" id="stat-time">0:00</span></div>
       <div class="tile strong"><div class="label">Charge</div><span class="value" id="stat-mah">0</span> mAh</div>
       <div class="tile strong"><div class="label">Energy</div><span class="value" id="stat-wh">0.000</span> Wh</div>
-      <div class="tile"><div class="label">Efficiency</div><span class="value" id="stat-eff">–</span></div>
+      <div class="tile"><div class="label">Efficiency <button type="button" class="help-btn" popovertarget="help-efficiency" aria-label="What is efficiency?">?</button></div><span class="value" id="stat-eff">–</span></div>
       <div class="tile wide" title="Estimate: rated energy (mAh × cell voltage) minus delivered energy, at the average power of the last 5 minutes. Conversion losses make the real time shorter."><div class="label">Remaining (est.)</div><span class="value" id="stat-eta">–</span><div class="note" id="stat-eta-note"></div></div>
+    </div>
+
+    <!-- Help text for the efficiency tile. It opens from the "?" button. -->
+    <div popover id="help-efficiency" class="help-pop">
+      Delivered energy divided by the rated energy (rated mAh × cell voltage).
+      80–90 % is good for a power bank. Below 70 % is poor.
+      <a href="help.html#efficiency">More in Help</a>
     </div>
 
     <p class="hint">Move the mouse over a chart to read the values. Drag sideways to zoom. Double click to reset.</p>

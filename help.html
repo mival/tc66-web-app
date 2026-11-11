@@ -96,6 +96,50 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <p>On the Meter page, each value has a small <span class="q-sample">?</span> button that explains it.</p>
   </section>
 
+  <section id="efficiency" aria-labelledby="efficiency-heading">
+    <h2 id="efficiency-heading">Battery test: efficiency</h2>
+    <p>
+      The efficiency compares the energy that the power bank gives out with the energy on its label.
+      Enter the rated capacity and the cell voltage on the <a href="battery.html">Battery test page</a> to see it.
+    </p>
+    <p><strong>How the page computes it</strong></p>
+    <ol>
+      <li>Rated energy (Wh) = rated capacity (mAh) × cell voltage (V) ÷ 1000.</li>
+      <li>Delivered energy (Wh) = sum of voltage × current × time for all samples at the USB output.</li>
+      <li>Efficiency (%) = delivered energy ÷ rated energy × 100.</li>
+    </ol>
+    <p>
+      Example: a 10000 mAh power bank with 3.7 V cells has 37 Wh rated energy.
+      If the meter counts 30 Wh at the output, the efficiency is 30 ÷ 37 = 81 %.
+    </p>
+    <p>
+      The label gives the capacity of the internal cells at 3.7 V (some use 3.6 V or 3.85 V).
+      The output is 5 V or more, so the power bank must convert the voltage.
+      The converter, the cell resistance and the protection circuit use some energy.
+      Thus, 100 % is not possible. Do not compare the mAh at 5 V with the mAh on the label. Compare the Wh.
+    </p>
+    <p><strong>How to read the result</strong></p>
+    <table class="eff-table">
+      <thead><tr><th>Efficiency</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>above 95 %</td><td>Not usual. Check the cell voltage. The label can also give less capacity than the cells have.</td></tr>
+        <tr><td>85–95 %</td><td>Very good. A good converter and good cells.</td></tr>
+        <tr><td>75–85 %</td><td>Good. This is usual for most power banks.</td></tr>
+        <tr><td>65–75 %</td><td>Fair. Old cells, high current or a cheap converter.</td></tr>
+        <tr><td>below 65 %</td><td>Poor. The cells are worn, or the label gives too much capacity.</td></tr>
+      </tbody>
+    </table>
+    <p><strong>What changes the result</strong></p>
+    <ul>
+      <li><strong>Load current.</strong> A high current causes more loss. Test at about 1 A to compare power banks.</li>
+      <li><strong>Output voltage.</strong> USB PD at 9 V, 12 V or 20 V can give a different result than 5 V.</li>
+      <li><strong>Full charge.</strong> Charge the power bank fully before the test.</li>
+      <li><strong>Auto stop.</strong> Some power banks switch off at a low current. Then the test stops early and the efficiency is too low.</li>
+      <li><strong>Age and temperature.</strong> Old or cold cells give less energy.</li>
+    </ul>
+    <p>The <strong>Remaining (est.)</strong> tile uses the rated energy. It does not include the losses, so the real time is shorter.</p>
+  </section>
+
   <section aria-labelledby="links-heading">
     <h2 id="links-heading">Links and references</h2>
     <ul class="link-list">
