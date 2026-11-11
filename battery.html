@@ -45,8 +45,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <p class="hint">Discharge the power bank through a load. The meter measures the output. The page adds up the charge and the energy.</p>
     <div class="field-grid">
       <label>Test name <input type="text" id="session-name" placeholder="Power bank A" maxlength="80"></label>
-      <label>Rated capacity <input type="number" id="rated-mah" min="0" step="100" placeholder="10000"> mAh</label>
-      <label>Cell voltage <input type="number" id="nominal-v" min="0" step="0.1" value="3.7"> V</label>
+      <label>Rated capacity (mAh) <input type="number" id="rated-mah" min="0" step="100" placeholder="10000"></label>
+      <label>Cell voltage (V) <input type="number" id="nominal-v" min="0" step="0.1" value="3.7"></label>
       <label>Sample every
         <select id="sample-interval">
           <option value="1000">1 s</option>
