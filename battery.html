@@ -131,7 +131,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 </main>
 <footer class="app-foot">
   <span class="app-version" data-app-version>dev</span>
-  <button class="link-button" id="app-update" data-app-update type="button" hidden>Update available — reload</button>
+  <button class="link-button" id="app-check" data-app-check type="button" hidden>Check for updates</button>
+  <span class="app-update-message" data-app-update-message role="status" hidden></span>
 </footer>
 <script src="js/version.js"></script>
 <script src="js/tc66.js"></script>

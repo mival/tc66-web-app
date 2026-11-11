@@ -15,7 +15,8 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - A layout for phones and tablets.
 - A battery test page (`battery.html`) for power bank capacity. See below.
 - A Progressive Web App (PWA). You can install it and use it offline.
-- A version badge in the footer. The app checks for a new version and shows an "Update" button.
+- A version badge in the footer. The app checks for a new version and shows a reload banner.
+- An "Install" button in the header when the browser can install the app.
 
 ## Battery test
 
@@ -59,7 +60,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `js/theme.js` | Color scheme toggle (auto, light, dark) |
 | `js/pwa.js` | Service worker registration |
 | `js/version.js` | Build version, set by the deploy workflow |
-| `js/update.js` | Version badge, version check and update button |
+| `js/update.js` | Version badge, version check and update banner |
 | `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
 | `test/` | Unit tests, end-to-end tests, meter fixtures |
@@ -94,4 +95,8 @@ and pull request. On a push to `main`, it then publishes the pages, `css/`, `js/
 
 The build step writes the git commit and the date into `js/version.js` and `version.json`. It also sets a new service
 worker cache name. The page shows the version in the footer. The page fetches `version.json` to find a new version.
-When a new version is ready, the page shows an "Update" button. The button activates the new service worker and reloads.
+The page checks on load, when it becomes visible, and every 30 minutes.
+When a new version is ready, a banner asks the user to reload. The page does not reload by itself.
+The service worker fetches the app files network-first with cache `no-cache`.
+GitHub Pages lets the browser keep a file for 10 minutes. `no-cache` makes the browser ask the server each time.
+The service worker uses its cache only offline, or when the server gives no answer in 3 seconds.

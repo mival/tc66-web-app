@@ -96,6 +96,29 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <p>On the Meter page, each value has a small <span class="q-sample">?</span> button that explains it.</p>
   </section>
 
+  <section id="install" aria-labelledby="install-heading">
+    <h2 id="install-heading">Install the app</h2>
+    <p>
+      You can install the app on your computer or phone.
+      Then it opens in its own window and works offline.
+    </p>
+    <p data-install-status>In Chrome or Edge, click <strong>Install</strong> in the header, or use the install icon in the address bar.</p>
+    <p><button type="button" class="primary" data-install-button hidden>Install the app</button></p>
+    <div data-install-ios hidden>
+      <p>On iPhone or iPad:</p>
+      <ol>
+        <li>Open the page in Safari.</li>
+        <li>Tap the <strong>Share</strong> button.</li>
+        <li>Tap <strong>Add to Home Screen</strong>.</li>
+      </ol>
+      <p>iOS has no Web Serial API, so the app cannot connect to the meter there.</p>
+    </div>
+    <p><strong>Updates.</strong> The app checks for a new version when you open it and every 30 minutes.
+      When a new version is ready, a banner at the bottom asks you to reload.
+      The app does not reload by itself, so a running test does not stop.
+      You can also click <strong>Check for updates</strong> at the bottom of each page.</p>
+  </section>
+
   <section id="efficiency" aria-labelledby="efficiency-heading">
     <h2 id="efficiency-heading">Battery test: efficiency</h2>
     <p>
@@ -153,7 +176,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 </main>
 <footer class="app-foot">
   <span class="app-version" data-app-version>dev</span>
-  <button class="link-button" id="app-update" data-app-update type="button" hidden>Update available — reload</button>
+  <button class="link-button" id="app-check" data-app-check type="button" hidden>Check for updates</button>
+  <span class="app-update-message" data-app-update-message role="status" hidden></span>
 </footer>
 <script src="js/version.js"></script>
 <script src="js/theme.js"></script>
