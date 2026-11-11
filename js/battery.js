@@ -6,6 +6,8 @@
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
   const LIVE_BUFFER_LIMIT = 4000; // Samples kept for the idle live charts.
   const DB_FLUSH_INTERVAL_MS = 15000; // Write buffered samples to the database at most this often.
+  const ETA_WINDOW_MS = 5 * 60 * 1000; // The remaining-time estimate uses the average power of this period.
+  const ETA_MIN_DATA_MS = 20000; // Show no estimate until the test has this much data.
 
   const CHART_SERIES = [
     { field: 'v', suffix: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 3, label: 'Voltage' },
@@ -18,7 +20,7 @@
   let pollingLoopId = 0;
   let db = null;
   let liveBuffer = [];
-  let recording = null; // { sessionId, startedAt, samples, pending, totalMah, totalWh, ratedWh, prev, lastFlush }
+  let recording = null; // { sessionId, startedAt, samples, pending, totalMah, totalWh, ratedWh, prev, lastFlush, energyMarks }
   let autoBelowSince = null;
   let selectedSessionId = null;
   let drawScheduled = false;
@@ -187,7 +189,7 @@
     const ratedWh = ratedMah != null && nominalV != null ? (ratedMah * nominalV) / 1000 : null;
     const startedAt = Date.now();
     // Set the recording state now. Samples buffer while createSession resolves.
-    recording = { sessionId: null, startedAt, samples: [], pending: [], totalMah: 0, totalWh: 0, ratedWh, prev: null, lastFlush: startedAt };
+    recording = { sessionId: null, startedAt, samples: [], pending: [], totalMah: 0, totalWh: 0, ratedWh, prev: null, lastFlush: startedAt, energyMarks: [] };
     liveBuffer = [];
     autoBelowSince = null;
     element('test-status').textContent = `Recording "${name}"${auto ? ' (auto start)' : ''}…`;
@@ -217,6 +219,10 @@
       }
     }
     recording.prev = sample;
+    // Keep the cumulative energy for the estimate window, plus one older mark as the window start.
+    const marks = recording.energyMarks;
+    marks.push({ t: sample.t, wh: recording.totalWh });
+    while (marks.length > 2 && sample.t - marks[1].t >= ETA_WINDOW_MS) marks.shift();
     updateLiveStats();
     if (sample.t - recording.lastFlush >= DB_FLUSH_INTERVAL_MS) flushPending();
   }
@@ -236,6 +242,33 @@
     element('stat-wh').textContent = recording.totalWh.toFixed(3);
     const eff = TC66DB_API.efficiency(recording.totalWh, recording.ratedWh);
     element('stat-eff').textContent = eff != null ? `${eff.toFixed(1)} %` : '–';
+    updateRemaining();
+  }
+
+  // Estimate the remaining time from the rated energy and the average power of the last minutes.
+  // The rated energy is the rated mAh at the cell voltage. It does not include conversion losses,
+  // so the real remaining time is usually shorter.
+  function updateRemaining() {
+    const valueElement = element('stat-eta');
+    const noteElement = element('stat-eta-note');
+    const show = (value, note) => { valueElement.textContent = value; noteElement.textContent = note; };
+    if (!recording) { show('–', element('rated-mah').value ? '' : 'set the rated capacity'); return; }
+    if (recording.ratedWh == null || recording.ratedWh <= 0) { show('–', 'needs a rated capacity'); return; }
+    const remainingWh = recording.ratedWh - recording.totalWh;
+    if (remainingWh <= 0) { show('0:00', 'past the rating'); return; }
+    const marks = recording.energyMarks;
+    const first = marks[0];
+    const last = marks[marks.length - 1];
+    const spanMs = last.t - first.t;
+    if (spanMs < ETA_MIN_DATA_MS) { show('…', 'measuring'); return; }
+    const averageW = (last.wh - first.wh) / (spanMs / 3600000);
+    if (!(averageW > 0.01)) { show('–', 'no load'); return; }
+    const remainingS = (remainingWh / averageW) * 3600;
+    const endsAt = new Date(last.t + remainingS * 1000);
+    const sameDay = endsAt.toDateString() === new Date().toDateString();
+    const clock = endsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const day = sameDay ? '' : `${endsAt.toLocaleDateString([], { weekday: 'short' })} `;
+    show(UChart.formatTime(remainingS), `ends ~${day}${clock} at ${averageW.toFixed(2)} W`);
   }
 
   function handleAutoStop(current) {
@@ -254,6 +287,7 @@
     const finished = recording;
     recording = null;
     autoBelowSince = null;
+    updateRemaining();
     if (db && finished.sessionId != null) {
       try {
         if (finished.pending.length) await db.addSamples(finished.sessionId, finished.pending);
@@ -474,6 +508,8 @@
     });
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
+    element('rated-mah').addEventListener('input', () => { if (!recording) updateRemaining(); });
+    updateRemaining();
     scheduleDraw();
     initDatabase();
   }

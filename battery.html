@@ -75,6 +75,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <div class="tile strong"><div class="label">Charge</div><span class="value" id="stat-mah">0</span> mAh</div>
       <div class="tile strong"><div class="label">Energy</div><span class="value" id="stat-wh">0.000</span> Wh</div>
       <div class="tile"><div class="label">Efficiency</div><span class="value" id="stat-eff">–</span></div>
+      <div class="tile wide" title="Estimate: rated energy (mAh × cell voltage) minus delivered energy, at the average power of the last 5 minutes. Conversion losses make the real time shorter."><div class="label">Remaining (est.)</div><span class="value" id="stat-eta">–</span><div class="note" id="stat-eta-note"></div></div>
     </div>
 
     <p class="hint">Move the mouse over a chart to read the values. Drag sideways to zoom. Double click to reset.</p>

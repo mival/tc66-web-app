@@ -24,6 +24,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - Discharge the power bank through a load. The meter measures the output.
 - The page adds up the charge (mAh) and the energy (Wh) with the trapezoid rule.
 - Enter the rated capacity to see the efficiency against the rating.
+- With a rated capacity, the page estimates the remaining time. It uses the average power of the last 5 minutes. Conversion losses can make the real time shorter.
 - Automatic start and stop: the test starts when the current rises above a threshold and stops when it falls below one.
 - Each test is saved in the browser with IndexedDB. No server is needed.
 - The "Saved tests" list shows each test. Select one to graph it and read its totals.
