@@ -319,15 +319,41 @@ try {
   await evaluate(`document.getElementById('set-voltage').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
   check('Escape shows the supply value again', await evaluate(`document.getElementById('set-voltage').value`) === '3.00');
 
-  // Save the current U and I (3.00 V, 0.300 A after the recall) into M7. The other fields of M7 stay.
-  await evaluate('window.confirm = () => true');
-  await click('[data-save="7"]');
-  await sleep(800);
+  // Edit M7 in the dialog. M7 has U 8.00 V, I 0.800 A, OVP 9.00 V, OCP 0.900 A, OPP 30.0 W, light 4.
+  const dialogOpen = () => evaluate(`document.getElementById('preset-dialog').open`);
+  const dialogValues = () => evaluate(`['preset-voltage', 'preset-current', 'preset-ovp', 'preset-ocp', 'preset-opp', 'preset-light']
+    .map((id) => document.getElementById(id).value).join(' ')`);
+  await click('[data-edit="7"]');
+  await sleep(500);
+  check('Edit opens the dialog as a modal', await dialogOpen() && await evaluate(`document.getElementById('preset-dialog').matches(':modal')`));
+  check('the dialog shows the values of M7', (await dialogValues()) === '8.00 0.800 9.00 0.900 30.0 4' &&
+    (await textOf('preset-dialog-group')) === 'M7', await dialogValues());
+  // Use the current U and I (3.00 V, 0.300 A after the recall), set OCP 1.2 A and output on at power on, then save.
+  await click('#preset-use-current');
+  await evaluate(`document.getElementById('preset-ocp').value = '1.2'; document.getElementById('preset-start').checked = true`);
+  await click('#preset-form button[value="save"]');
+  await sleep(900);
   state = await registers();
-  check('Save U/I writes U and I into M7', (await evaluate('window.__dps.frames')).includes('01 10 00 c0 00 02 04 01 2c 01 2c 3f 87') &&
-    state[0xc0] === 300 && state[0xc1] === 300 && state[0xc2] === 900);
-  check('Save U/I shows the new values of M7',
-    await evaluate(`Array.from(document.querySelectorAll('#preset-7 td')).slice(0, 2).map((cell) => cell.textContent).join(' ')`) === '3.00 0.300');
+  check('Save writes all 8 registers of M7 in one request',
+    (await evaluate('window.__dps.frames')).includes('01 10 00 c0 00 08 10 01 2c 01 2c 03 84 04 b0 01 2c 00 04 00 00 00 01 5b d6') &&
+    JSON.stringify(state.slice(0xc0, 0xc8)) === '[300,300,900,1200,300,4,0,1]', JSON.stringify(state.slice(0xc0, 0xc8)));
+  check('the dialog closes and the table shows the new values', !(await dialogOpen()) &&
+    await evaluate(`Array.from(document.querySelectorAll('#preset-7 td')).slice(0, 7).map((cell) => cell.textContent).join(' ')`) === '3.00 0.300 9.00 1.200 30.0 4 yes');
+
+  // A value over the limit keeps the dialog open and sends nothing. Cancel discards the edit.
+  await click('[data-edit="7"]');
+  await sleep(500);
+  const framesBeforeInvalid = (await evaluate('window.__dps.frames')).filter((frame) => frame.startsWith('01 10')).length;
+  await evaluate(`document.getElementById('preset-ocp').value = '9'`);
+  await click('#preset-form button[value="save"]');
+  await sleep(300);
+  check('an OCP over the limit keeps the dialog open', await dialogOpen() &&
+    await evaluate(`document.getElementById('preset-ocp').validity.rangeOverflow`));
+  await click('#preset-form button[value="cancel"]');
+  await sleep(400);
+  check('Cancel closes the dialog and sends nothing', !(await dialogOpen()) &&
+    (await evaluate('window.__dps.frames')).filter((frame) => frame.startsWith('01 10')).length === framesBeforeInvalid &&
+    (await registers())[0xc3] === 1200);
 
   await click('#output-switch');
   await sleep(600);

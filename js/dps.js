@@ -212,11 +212,11 @@
   // DPS3005 and DPS5005 agree with public register tables (DPS5005_pyGUI).
   // The other models are not confirmed. Their current and power need fewer decimals to fit into 16 bits.
   const MODELS = {
-    3005: { name: 'DPS3005', maxVoltage: 32, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
-    5005: { name: 'DPS5005', maxVoltage: 50, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
-    8005: { name: 'DPS8005', maxVoltage: 80, maxCurrent: 5.1, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: false },
-    5015: { name: 'DPS5015', maxVoltage: 50, maxCurrent: 15, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
-    5020: { name: 'DPS5020', maxVoltage: 50, maxCurrent: 20, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
+    3005: { name: 'DPS3005', maxPower: 160, maxVoltage: 32, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
+    5005: { name: 'DPS5005', maxPower: 250, maxVoltage: 50, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
+    8005: { name: 'DPS8005', maxPower: 408, maxVoltage: 80, maxCurrent: 5.1, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: false },
+    5015: { name: 'DPS5015', maxPower: 750, maxVoltage: 50, maxCurrent: 15, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
+    5020: { name: 'DPS5020', maxPower: 1000, maxVoltage: 50, maxCurrent: 20, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
   };
 
   // Return the scaling for a model number. An unknown model gets the DPS3005 scaling and known: false.
@@ -263,6 +263,44 @@
       versionRaw,
       version: (versionRaw / 10).toFixed(1),
     };
+  }
+
+  // The highest value of each memory group field for a model.
+  // The protection limits follow DPS5005_pyGUI for the DPS5005 (51 V, 5.1 A, 251 W): the range plus a margin.
+  // For the other models this rule is an estimate.
+  function presetLimits(scaling) {
+    return {
+      voltageSet: scaling.maxVoltage,
+      currentSet: scaling.maxCurrent,
+      overVoltage: scaling.maxVoltage + 1,
+      overCurrent: Math.round((scaling.maxCurrent + 0.1) * 1000) / 1000,
+      overPower: scaling.maxPower + 1,
+      brightness: MAX_BRIGHTNESS,
+    };
+  }
+
+  // Encode a memory group into its 8 registers. Throw a RangeError if a value is outside the model limits.
+  function encodePreset(preset, scaling) {
+    const limits = presetLimits(scaling);
+    const check = (field, label, unit) => {
+      const value = preset[field];
+      if (!(typeof value === 'number' && value >= 0 && value <= limits[field])) {
+        throw new RangeError(`${label} must be 0-${limits[field]}${unit}.`);
+      }
+      return value;
+    };
+    const brightness = check('brightness', 'The brightness', '');
+    if (!Number.isInteger(brightness)) throw new RangeError('The brightness must be a whole number.');
+    return [
+      toRegister(check('voltageSet', 'The voltage', ' V'), scaling.voltageDecimals, 'Voltage'),
+      toRegister(check('currentSet', 'The current', ' A'), scaling.currentDecimals, 'Current'),
+      toRegister(check('overVoltage', 'OVP', ' V'), scaling.voltageDecimals, 'OVP'),
+      toRegister(check('overCurrent', 'OCP', ' A'), scaling.currentDecimals, 'OCP'),
+      toRegister(check('overPower', 'OPP', ' W'), OVER_POWER_DECIMALS, 'OPP'),
+      brightness,
+      preset.memoryPreset ? 1 : 0,
+      preset.outputOnStart ? 1 : 0,
+    ];
   }
 
   // Decode the 8 registers of one memory group.
@@ -520,10 +558,10 @@
       return decodePreset(registers, this.scaling);
     }
 
-    // Write U-SET and I-SET into a memory group (function 0x10).
-    // The other 6 registers of the group (OVP, OCP, OPP, B-LED, M-PRE, S-INI) do not change.
-    async savePresetSetpoints(index, volts, amps) {
-      return this.writeRegisters(presetAddress(index), [this.voltageToRegister(volts), this.currentToRegister(amps)]);
+    // Write all 8 registers of a memory group in one request (function 0x10).
+    // M0 is the active group, so a write to M0 also changes the active settings.
+    async writePreset(index, preset) {
+      return this.writeRegisters(presetAddress(index), encodePreset(preset, this.scaling));
     }
 
     // Load the memory group into the active settings.
@@ -628,6 +666,8 @@
     protectionName,
     decodeStatus,
     decodePreset,
+    encodePreset,
+    presetLimits,
     presetAddress,
     samplesToCsv,
     DPSPort,

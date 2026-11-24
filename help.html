@@ -196,7 +196,9 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
         Remove the cause, then switch the output on again.</li>
       <li><strong>Keys locked</strong>: the buttons on the supply do not work until you unlock them.</li>
       <li><strong>Memory groups M0–M9</strong>: stored sets of U, I and protection limits. Recall loads one group.
-        <strong>Save U/I</strong> writes the current U-SET and I-SET into a group and keeps its protection limits.
+        <strong>Edit</strong> opens a dialog with all values of a group: U, I, OVP, OCP, OPP, light, M-PRE and output on start.
+        <strong>Save to supply</strong> writes them. <strong>Use current U/I</strong> copies the present U-SET and I-SET into the dialog.
+        Editing M0 changes the active settings at once.
         M0 is the group that the supply loads at power on.</li>
       <li><strong>Set U and I</strong>: use the arrows or the ↑ ↓ keys. Choose the step size below the value.
         Hold an arrow to repeat. Page Up and Page Down change the value by 10 steps. Escape cancels a typed value.</li>

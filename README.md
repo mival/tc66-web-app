@@ -43,7 +43,7 @@ The data stays in the browser. To see a test on another device, export the JSON 
 - The CV/CC mode, the protection state (OVP, OCP, OPP), the output state and the key lock.
 - Set the voltage and the current limit with arrow buttons, the arrow keys or a typed value. Choose the step size.
 - Switch the output on and off, lock the keys, set the brightness.
-- Read the memory groups M0-M9, recall one of them, or save the current U and I into one.
+- Read the memory groups M0-M9, recall one of them, or edit one in a dialog: U, I, OVP, OCP, OPP, light, M-PRE and output on start.
 - Save the live samples as CSV.
 - A wired COM port, a paired Bluetooth COM port, or a direct Bluetooth RFCOMM port in newer Chrome.
 

@@ -215,7 +215,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <button id="read-presets" disabled>Read groups</button>
       <span id="presets-status" class="hint" role="status"></span>
     </div>
-    <p class="hint">Recall loads the voltage, current and protection values of a group. Save U/I writes the current U-SET and I-SET of the supply into a group. It keeps the protection values of the group. M0 is the group that the supply loads at power on.</p>
+    <p class="hint">Recall loads the voltage, current and protection values of a group. Edit changes the values of a group on the supply. M0 is the active group: the supply loads it at power on, and a change on the supply also writes into M0.</p>
     <div class="table-scroll">
       <table class="session-list preset-table" id="preset-table">
         <thead><tr><th scope="col">Group</th><th scope="col">U (V) <button type="button" class="help-btn" popovertarget="help-preset-u" aria-label="What is U?">?</button></th><th scope="col">I (A) <button type="button" class="help-btn" popovertarget="help-preset-i" aria-label="What is I?">?</button></th><th scope="col">OVP (V) <button type="button" class="help-btn" popovertarget="help-preset-ovp" aria-label="What is OVP?">?</button></th><th scope="col">OCP (A) <button type="button" class="help-btn" popovertarget="help-preset-ocp" aria-label="What is OCP?">?</button></th><th scope="col">OPP (W) <button type="button" class="help-btn" popovertarget="help-preset-opp" aria-label="What is OPP?">?</button></th><th scope="col">Light <button type="button" class="help-btn" popovertarget="help-preset-light" aria-label="What is Light?">?</button></th><th scope="col">Output on start <button type="button" class="help-btn" popovertarget="help-preset-start" aria-label="What is Output on start?">?</button></th><th><span class="visually-hidden">Action</span></th></tr></thead>
@@ -230,6 +230,34 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <div popover id="help-preset-opp" class="help-pop">Over-power protection. If the output power goes above this value, the supply switches the output off and shows OPP.</div>
     <div popover id="help-preset-light" class="help-pop">Display brightness that the group sets, from 0 (dark) to 5 (bright).</div>
     <div popover id="help-preset-start" class="help-pop">Output state after power on. "yes" means that the output switches on as soon as the supply starts with this group. Use it with care.</div>
+
+    <!-- Edit dialog for one memory group. js/dps-app.js opens it with showModal(). -->
+    <dialog id="preset-dialog" class="preset-dialog" aria-labelledby="preset-dialog-title">
+      <form method="dialog" id="preset-form">
+        <h1 id="preset-dialog-title">Edit memory group <span id="preset-dialog-group">M1</span></h1>
+        <p class="hint" id="preset-dialog-note" hidden>M0 is the active group. Save changes the settings of the supply now and at power on.</p>
+        <div class="preset-fields">
+          <label>Voltage U (V) <input type="number" id="preset-voltage" name="voltageSet" autofocus min="0" max="32" step="0.01" required data-stepper="voltage"></label>
+          <label>Current limit I (A) <input type="number" id="preset-current" name="currentSet" min="0" max="5" step="0.001" required data-stepper="current limit"></label>
+          <label>OVP (V) <input type="number" id="preset-ovp" name="overVoltage" min="0" max="33" step="0.01" required data-stepper="over-voltage protection"></label>
+          <label>OCP (A) <input type="number" id="preset-ocp" name="overCurrent" min="0" max="5.1" step="0.001" required data-stepper="over-current protection"></label>
+          <label>OPP (W) <input type="number" id="preset-opp" name="overPower" min="0" max="161" step="0.1" required data-stepper="over-power protection"></label>
+          <label>Light (0–5) <input type="number" id="preset-light" name="brightness" min="0" max="5" step="1" required data-stepper="brightness"></label>
+        </div>
+        <div class="preset-switches">
+          <label class="switch-field"><input type="checkbox" switch role="switch" id="preset-mpre" name="memoryPreset"> Keep the output state on recall (M-PRE)</label>
+          <label class="switch-field"><input type="checkbox" switch role="switch" id="preset-start" name="outputOnStart"> Output on at power on (S-INI)</label>
+        </div>
+        <p class="hint">Set OVP a little above U and OCP a little above I. The supply switches the output off at these limits.</p>
+        <div class="dialog-actions">
+          <button type="button" id="preset-use-current">Use current U/I</button>
+          <span class="dialog-actions-end">
+            <button value="cancel" formnovalidate>Cancel</button>
+            <button value="save" class="primary">Save to supply</button>
+          </span>
+        </div>
+      </form>
+    </dialog>
   </section>
 
   <section aria-labelledby="log-heading">

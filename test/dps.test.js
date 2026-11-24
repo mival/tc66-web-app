@@ -288,17 +288,34 @@ test('DPSPort sends one request at a time', async () => {
   assert.equal(registers[DPS.REGISTER.BRIGHTNESS], 2);
 });
 
-test('DPSPort saves U and I into a memory group and keeps its other fields', async () => {
+test('encodePreset is the reverse of decodePreset', () => {
+  const scaling = DPS.modelScaling(3005);
+  const registers = [1234, 1500, 1300, 1600, 300, 4, 1, 0];
+  assert.deepEqual(DPS.encodePreset(DPS.decodePreset(registers, scaling), scaling), registers);
+});
+
+test('encodePreset checks the model limits', () => {
+  const scaling = DPS.modelScaling(3005);
+  const valid = { voltageSet: 12, currentSet: 1, overVoltage: 13, overCurrent: 1.1, overPower: 20, brightness: 3, memoryPreset: 0, outputOnStart: false };
+  assert.deepEqual(DPS.presetLimits(scaling), { voltageSet: 32, currentSet: 5, overVoltage: 33, overCurrent: 5.1, overPower: 161, brightness: 5 });
+  assert.throws(() => DPS.encodePreset({ ...valid, voltageSet: 32.5 }, scaling), /voltage must be 0-32 V/);
+  assert.throws(() => DPS.encodePreset({ ...valid, overCurrent: 5.2 }, scaling), /OCP must be 0-5.1 A/);
+  assert.throws(() => DPS.encodePreset({ ...valid, overPower: 162 }, scaling), /OPP must be 0-161 W/);
+  assert.throws(() => DPS.encodePreset({ ...valid, brightness: 2.5 }, scaling), /whole number/);
+  assert.throws(() => DPS.encodePreset({ ...valid, overVoltage: NaN }, scaling), /OVP/);
+  assert.deepEqual(DPS.encodePreset({ ...valid, memoryPreset: 1, outputOnStart: true }, scaling).slice(5), [3, 1, 1]);
+});
+
+test('DPSPort writes all 8 registers of a memory group in one request', async () => {
   const registers = new Array(0xf0).fill(0);
   registers[0x0b] = 3005;
-  // M2 at 0x70: U 3.00, I 0.300, OVP 4.00, OCP 0.400, OPP 30.0, light 4, M-PRE 0, S-INI 1.
-  [300, 300, 400, 400, 300, 4, 0, 1].forEach((value, offset) => { registers[0x70 + offset] = value; });
   const port = makeFakePort(emulator(registers));
-  await port.savePresetSetpoints(2, 12.34, 1.5);
-  assert.equal(port.writes[0], hex(DPS.buildWriteMultipleRequest(1, 0x70, [1234, 1500])));
-  assert.deepEqual(registers.slice(0x70, 0x78), [1234, 1500, 400, 400, 300, 4, 0, 1]);
-  await assert.rejects(() => port.savePresetSetpoints(10, 1, 1), RangeError);
-  await assert.rejects(() => port.savePresetSetpoints(1, 33, 1), /0-32 V/);
+  const preset = { voltageSet: 12.34, currentSet: 1.5, overVoltage: 13, overCurrent: 1.6, overPower: 30, brightness: 2, memoryPreset: 1, outputOnStart: false };
+  await port.writePreset(2, preset);
+  assert.equal(port.writes[0], hex(DPS.buildWriteMultipleRequest(1, 0x70, [1234, 1500, 1300, 1600, 300, 2, 1, 0])));
+  assert.deepEqual(registers.slice(0x70, 0x78), [1234, 1500, 1300, 1600, 300, 2, 1, 0]);
+  await assert.rejects(() => port.writePreset(10, preset), RangeError);
+  await assert.rejects(() => port.writePreset(1, { ...preset, overCurrent: 9 }), /OCP/);
   assert.equal(port.writes.length, 1);
 });
 

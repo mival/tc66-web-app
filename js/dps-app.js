@@ -80,7 +80,8 @@
       }
     }
     ['port-kind', 'baud-rate', 'slave-address'].forEach((id) => { element(id).disabled = connected; });
-    document.querySelectorAll('button[data-recall], button[data-save]').forEach((button) => { button.disabled = !connected; });
+    document.querySelectorAll('button[data-recall], button[data-edit]').forEach((button) => { button.disabled = !connected; });
+    if (!connected && element('preset-dialog').open) element('preset-dialog').close();
     if (!connected) {
       fillSetInputs = true;
       element('output-state').textContent = '–';
@@ -552,7 +553,7 @@
       row.id = `preset-${index}`;
       row.innerHTML = `<th scope="row">M${index}</th>` + '<td>–</td>'.repeat(7) +
         `<td class="preset-actions"><button type="button" data-recall="${index}" disabled>Recall</button>` +
-        `<button type="button" data-save="${index}" disabled aria-label="Save the current U and I into M${index}">Save U/I</button></td>`;
+        `<button type="button" data-edit="${index}" disabled aria-label="Edit M${index}">Edit</button></td>`;
       body.append(row);
     }
   }
@@ -598,25 +599,88 @@
     }
   }
 
-  // Save the current U-SET and I-SET of the supply into a group. The other fields of the group do not change.
-  async function savePreset(index) {
-    if (!connection || !lastStatus) return;
-    const { voltageDecimals, currentDecimals } = currentScaling();
-    const volts = lastStatus.voltageSet;
-    const amps = lastStatus.currentSet;
-    const text = `${volts.toFixed(voltageDecimals)} V and ${amps.toFixed(currentDecimals)} A`;
-    const question = index === 0
-      ? `Save ${text} into M0?\n\nThe supply loads M0 at power on. The OVP, OCP and OPP limits of M0 do not change.`
-      : `Save ${text} into M${index}?\n\nThe OVP, OCP and OPP limits of M${index} do not change.`;
-    if (!confirm(question)) return;
+  // ---------- Memory group editor ----------
+
+  // The dialog fields and the number of decimals of each one.
+  const PRESET_FIELDS = [
+    { id: 'preset-voltage', field: 'voltageSet', decimals: (scaling) => scaling.voltageDecimals },
+    { id: 'preset-current', field: 'currentSet', decimals: (scaling) => scaling.currentDecimals },
+    { id: 'preset-ovp', field: 'overVoltage', decimals: (scaling) => scaling.voltageDecimals },
+    { id: 'preset-ocp', field: 'overCurrent', decimals: (scaling) => scaling.currentDecimals },
+    { id: 'preset-opp', field: 'overPower', decimals: () => 1 },
+    { id: 'preset-light', field: 'brightness', decimals: () => 0 },
+  ];
+  let editedPresetIndex = null;
+
+  // Read the group from the supply, put its values into the dialog and open the dialog.
+  async function openPresetEditor(index, button) {
+    if (!connection) return;
     const activeConnection = connection;
-    const done = await runCommand(`Save ${text} into M${index}`, (port) => port.savePresetSetpoints(index, volts, amps));
+    button.disabled = true;
+    let preset;
+    try {
+      preset = await activeConnection.readPreset(index);
+    } catch (error) {
+      addLogLine(`Read M${index} failed: ${error.message}`);
+      return;
+    } finally {
+      button.disabled = !connection;
+    }
+    if (connection !== activeConnection) return;
+    showPreset(index, preset);
+    const scaling = currentScaling();
+    const limits = DPS.presetLimits(scaling);
+    element('preset-form').reset(); // Clears the values and the error state of the last edit.
+    for (const { id, field, decimals } of PRESET_FIELDS) {
+      const input = element(id);
+      const places = decimals(scaling);
+      input.max = String(limits[field]);
+      input.step = String(10 ** -places);
+      input.value = preset[field].toFixed(places);
+    }
+    element('preset-mpre').checked = preset.memoryPreset !== 0;
+    element('preset-start').checked = preset.outputOnStart;
+    element('preset-dialog-group').textContent = `M${index}`;
+    element('preset-dialog-note').hidden = index !== 0;
+    editedPresetIndex = index;
+    const dialog = element('preset-dialog');
+    dialog.returnValue = '';
+    dialog.showModal();
+  }
+
+  function presetFromDialog() {
+    const preset = {};
+    for (const { id, field } of PRESET_FIELDS) preset[field] = Number(element(id).value);
+    preset.memoryPreset = element('preset-mpre').checked ? 1 : 0;
+    preset.outputOnStart = element('preset-start').checked;
+    return preset;
+  }
+
+  // The form submits after the browser checked the fields. Only "Save to supply" saves.
+  // Escape and Cancel close the dialog and discard the edit.
+  // The page uses 'submit', not the 'close' event of the dialog: 'submit' comes at once and names the button.
+  async function onPresetFormSubmit(event) {
+    const choice = event.submitter ? event.submitter.value : '';
+    const index = editedPresetIndex;
+    editedPresetIndex = null;
+    if (choice !== 'save' || index === null || !connection) return;
+    const activeConnection = connection;
+    const preset = presetFromDialog();
+    const done = await runCommand(`Save M${index}`, (port) => port.writePreset(index, preset));
     if (!done || connection !== activeConnection) return;
+    if (index === 0) fillSetInputs = true; // M0 is the active group. Show its new U and I in the setpoints.
     try {
       showPreset(index, await activeConnection.readPreset(index));
     } catch (error) {
       addLogLine(`Read M${index} failed: ${error.message}`);
     }
+  }
+
+  function useCurrentSetpoints() {
+    if (!lastStatus) return;
+    const scaling = currentScaling();
+    element('preset-voltage').value = lastStatus.voltageSet.toFixed(scaling.voltageDecimals);
+    element('preset-current').value = lastStatus.currentSet.toFixed(scaling.currentDecimals);
   }
 
   async function recallPreset(index) {
@@ -649,11 +713,14 @@
     element('brightness').addEventListener('input', showBrightness);
     element('brightness').addEventListener('change', changeBrightness);
     element('read-presets').addEventListener('click', readPresets);
+    element('preset-form').addEventListener('submit', onPresetFormSubmit);
+    element('preset-use-current').addEventListener('click', useCurrentSetpoints);
+    Stepper.enhance();
     element('preset-body').addEventListener('click', (event) => {
       const recallButton = event.target.closest('button[data-recall]');
       if (recallButton) recallPreset(Number(recallButton.dataset.recall));
-      const saveButton = event.target.closest('button[data-save]');
-      if (saveButton) savePreset(Number(saveButton.dataset.save));
+      const editButton = event.target.closest('button[data-edit]');
+      if (editButton) openPresetEditor(Number(editButton.dataset.edit), editButton);
     });
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
     Theme.init(scheduleDraw); // Redraw the charts when the scheme changes.
