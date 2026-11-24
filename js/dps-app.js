@@ -45,6 +45,8 @@
   let drawScheduled = false;
   let readingPresets = false;
   let switchBusy = false;
+  let lockedByPage = false; // The page locked the keys on connect, so Disconnect unlocks them.
+  const AUTOLOCK_STORAGE_KEY = 'dps-autolock';
 
   // ---------- Log and status ----------
 
@@ -172,18 +174,35 @@
     } catch (error) {
       addLogLine(`The supply does not respond: ${error.message}`);
       addLogLine('Check the baud rate and the slave address. For Bluetooth, the supply must be on and no other device can be connected.');
-      await disconnect();
+      await disconnect({ unlock: false });
       setStatus('Supply does not respond', 'error');
       return;
     }
+    if (element('autolock-switch').checked) await lockOnConnect(lastStatus);
     startPolling();
   }
 
-  async function disconnect() {
+  // Lock the keys if they are free. Remember that the page locked them.
+  async function lockOnConnect(status) {
+    if (!connection || !status || status.locked) return;
+    lockedByPage = await runCommand('Lock keys on connect', (port) => port.setLock(true));
+  }
+
+  // unlock: false skips the unlock, for example when the supply does not respond.
+  async function disconnect({ unlock = true } = {}) {
     const oldConnection = connection;
     if (!oldConnection) return;
     connection = null;
     stopPolling();
+    if (unlock && lockedByPage) {
+      try {
+        await oldConnection.setLock(false);
+        addLogLine('Unlock keys on disconnect: done.');
+      } catch (error) {
+        addLogLine(`Unlock keys on disconnect failed: ${error.message}`);
+      }
+    }
+    lockedByPage = false;
     await oldConnection.close();
     setConnectedUi(false);
     setStatus('Not connected');
@@ -193,6 +212,7 @@
   function onConnectionLost(lostConnection, error) {
     if (connection !== lostConnection) return;
     connection = null;
+    lockedByPage = false;
     stopPolling();
     setConnectedUi(false);
     setStatus('Connection lost', 'error');
@@ -222,7 +242,7 @@
       onGiveUp: async () => {
         if (connection !== activeConnection) return;
         addLogLine(`${MAX_FAILED_POLLS} reads failed. Polling stops. Check the supply, then connect again.`);
-        await disconnect();
+        await disconnect({ unlock: false });
         setStatus('Supply does not respond', 'error');
       },
     });
@@ -688,6 +708,27 @@
     if (done) fillSetInputs = true;
   }
 
+  // ---------- Lock the keys on connect ----------
+
+  // localStorage keeps the setting. It can be blocked, for example in a private window. Then the switch starts off.
+  function initAutolock() {
+    const autolockSwitch = element('autolock-switch');
+    try {
+      autolockSwitch.checked = localStorage.getItem(AUTOLOCK_STORAGE_KEY) === 'on';
+    } catch {
+      autolockSwitch.checked = false;
+    }
+    autolockSwitch.addEventListener('change', () => {
+      try {
+        localStorage.setItem(AUTOLOCK_STORAGE_KEY, autolockSwitch.checked ? 'on' : 'off');
+      } catch {
+        // The setting applies to this visit only.
+      }
+      // Switched on while connected: lock the keys now.
+      if (autolockSwitch.checked) lockOnConnect(lastStatus);
+    });
+  }
+
   // ---------- Events ----------
 
   function init() {
@@ -708,6 +749,7 @@
     Object.values(SETPOINTS).forEach(bindSetpoint);
     element('output-switch').addEventListener('change', (event) => onSwitchChange(event.target,
       (on) => `Output ${on ? 'on' : 'off'}`, (port, on) => port.setOutput(on)));
+    element('lock-switch').addEventListener('change', () => { lockedByPage = false; });
     element('lock-switch').addEventListener('change', (event) => onSwitchChange(event.target,
       (locked) => (locked ? 'Lock keys' : 'Unlock keys'), (port, locked) => port.setLock(locked)));
     element('brightness').addEventListener('input', showBrightness);
@@ -716,6 +758,7 @@
     element('preset-form').addEventListener('submit', onPresetFormSubmit);
     element('preset-use-current').addEventListener('click', useCurrentSetpoints);
     Stepper.enhance();
+    initAutolock();
     element('preset-body').addEventListener('click', (event) => {
       const recallButton = event.target.closest('button[data-recall]');
       if (recallButton) recallPreset(Number(recallButton.dataset.recall));

@@ -195,6 +195,9 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <li><strong>Protection</strong>: OVP (over voltage), OCP (over current) or OPP (over power) switched the output off.
         Remove the cause, then switch the output on again.</li>
       <li><strong>Keys locked</strong>: the buttons on the supply do not work until you unlock them.</li>
+      <li><strong>Lock the keys on connect</strong>: with this switch on, the page locks the keys each time it connects.
+        Disconnect unlocks them again, but only if the page locked them. If the connection drops, the keys stay locked.
+        Then hold the knob on the supply for 2 s to unlock them.</li>
       <li><strong>Memory groups M0–M9</strong>: stored sets of U, I and protection limits. Recall loads one group.
         <strong>Edit</strong> opens a dialog with all values of a group: U, I, OVP, OCP, OPP, light, M-PRE and output on start.
         <strong>Save to supply</strong> writes them. <strong>Use current U/I</strong> copies the present U-SET and I-SET into the dialog.

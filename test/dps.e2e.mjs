@@ -374,8 +374,13 @@ try {
   await sleep(400);
   check('disconnect closes the port', await evaluate('window.__dps.closed === true') && (await textOf('status-text')) === 'Not connected');
 
-  // ---- Bluetooth filter on an older browser ----
+  check('lock on connect is off by default', !(await evaluate(`document.getElementById('autolock-switch').checked`)));
+  // Switch on "Lock the keys on connect". The browser keeps the setting for the next page load.
+  await click('#autolock-switch');
+
+  // ---- Bluetooth filter on an older browser, with lock on connect ----
   await navigate('?oldBrowser=1');
+  check('the lock on connect setting stays after a reload', await evaluate(`document.getElementById('autolock-switch').checked`));
   await evaluate(`document.getElementById('port-kind').value = 'bluetooth'`);
   await click('#connect');
   await sleep(1000);
@@ -383,8 +388,21 @@ try {
   check('Bluetooth only uses a service class filter', JSON.stringify(fallbackOptions[0].filters) === '[{"bluetoothServiceClassId":"00001101-0000-1000-8000-00805f9b34fb"}]');
   check('an older browser falls back to all ports', JSON.stringify(fallbackOptions[1]) === '{}' && (await textOf('status-text')) === 'Connected',
     JSON.stringify(fallbackOptions));
+  check('connect locks the keys', (await registers())[6] === 1 && (await textOf('badge-lock')) === 'Keys locked');
   await click('#disconnect');
-  await sleep(300);
+  await sleep(500);
+  check('disconnect unlocks the keys that the page locked', (await registers())[6] === 0 && /Unlock keys on disconnect: done/.test(await textOf('log')));
+  // Keys that the user locks stay locked after Disconnect.
+  await click('#connect');
+  await sleep(1000);
+  await click('#lock-switch'); // Unlock by hand: the page no longer owns the lock.
+  await sleep(400);
+  await click('#lock-switch'); // Lock by hand.
+  await sleep(400);
+  await click('#disconnect');
+  await sleep(500);
+  check('disconnect keeps a lock that the user set', (await registers())[6] === 1);
+  await click('#autolock-switch'); // Switch the setting off again for the next tests.
 
   // ---- A supply that does not answer ----
   await navigate('?silent=1');
