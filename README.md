@@ -1,6 +1,6 @@
 # TC66C Web Serial
 
-A web page for the RDTech TC66C USB-C meter. The page uses the Web Serial API. It needs no server and no build step.
+A web page for the RDTech TC66C USB-C meter and the RDTech DPS3005 power supply. The page uses the Web Serial API. It needs no server and no build step.
 
 Online version: <https://mival.github.io/tc66-web-app/>. You can also open `index.html` from a local folder.
 
@@ -14,6 +14,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - Light and dark theme. The header button cycles auto, light and dark. "Auto" follows the system setting.
 - A layout for phones and tablets.
 - A battery test page (`battery.html`) for power bank capacity. See below.
+- A power supply page (`dps.html`) for the RDTech DPS3005. See below.
 - A Progressive Web App (PWA). You can install it and use it offline.
 - A version badge in the footer. The app checks for a new version and shows a reload banner.
 - An "Install" button in the header when the browser can install the app.
@@ -34,6 +35,24 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 
 The data stays in the browser. To see a test on another device, export the JSON and import it there.
 
+## Power supply (DPS3005)
+
+`dps.html` controls an RDTech DPS3005 power supply over Modbus RTU.
+
+- Live output voltage, output current, power and input voltage, with charts.
+- The CV/CC mode, the protection state (OVP, OCP, OPP), the output state and the key lock.
+- Set the voltage and the current limit, switch the output on and off, lock the keys, set the brightness.
+- Read the memory groups M0-M9 and recall one of them.
+- Save the live samples as CSV.
+- A wired COM port, a paired Bluetooth COM port, or a direct Bluetooth RFCOMM port in newer Chrome.
+
+The default settings are 9600 baud, 8N1 and slave address 1. The page sends one request at a time.
+For Bluetooth on Windows, pair the supply first (PIN usually `1234`) and close the phone app.
+Then select the outgoing Bluetooth COM port. The help page has the steps.
+
+The DPS3005 scaling agrees with public register tables. The scaling of other DPS models is not confirmed.
+`NOTES.md` has the register map.
+
 ## Use
 
 1. Connect the meter to Windows. WSL does not see the COM port.
@@ -49,6 +68,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 |---|---|
 | `index.html` | Meter page markup |
 | `battery.html` | Battery test page markup |
+| `dps.html` | Power supply page markup |
 | `css/style.css` | Styles, light and dark color scheme, phone layout |
 | `js/tc66.js` | AES-256 decryption, packet parsers, CSV export, serial transport |
 | `js/chart.js` | Canvas strip chart (meter page) |
@@ -57,13 +77,15 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `js/app.js` | Meter page logic |
 | `js/db.js` | IndexedDB session store and capacity integrator |
 | `js/battery.js` | Battery test page logic |
+| `js/dps.js` | Modbus RTU frames and CRC, DPS register decoding, serial transport with a request queue, poller |
+| `js/dps-app.js` | Power supply page logic |
 | `js/theme.js` | Color scheme toggle (auto, light, dark) |
 | `js/pwa.js` | Service worker registration |
 | `js/version.js` | Build version, set by the deploy workflow |
 | `js/update.js` | Version badge, version check and update banner |
 | `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
-| `test/` | Unit tests, end-to-end tests, meter fixtures |
+| `test/` | Unit tests, end-to-end tests, meter fixtures, Modbus fixture frames |
 | `research/` | Local research files (not in git): scripts, firmware images |
 
 ## Tests
@@ -71,7 +93,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 Run the unit tests:
 
 ```sh
-node --test test/tc66.test.js test/db.test.js
+node --test test/tc66.test.js test/db.test.js test/dps.test.js
 ```
 
 Run the end-to-end test. It starts headless Chrome with a mock serial port that replays real meter bytes:
@@ -88,9 +110,15 @@ There is also a battery page end-to-end test. Run it with the same `BROWSER_PATH
 BROWSER_PATH=/path/to/chrome node test/battery.e2e.mjs
 ```
 
+The power supply end-to-end test uses a DPS3005 emulator as the mock serial port:
+
+```sh
+BROWSER_PATH=/path/to/chrome node test/dps.e2e.mjs
+```
+
 ## Deployment
 
-The `Pages` workflow (`.github/workflows/pages.yml`) runs the unit tests and the meter end-to-end test on each push
+The `Pages` workflow (`.github/workflows/pages.yml`) runs the unit tests and the meter and power supply end-to-end tests on each push
 and pull request. On a push to `main`, it then publishes the pages, `css/`, `js/` and the PWA files to GitHub Pages.
 
 The build step writes the git commit and the date into `js/version.js` and `version.json`. It also sets a new service
