@@ -29,6 +29,10 @@
   --current-dark: #fb923c;
   --power-light: #7c3aed;
   --power-dark: #c4a1ff;
+  --input-light: #0f766e;
+  --input-dark: #2dd4bf;
+  --warning-light: #a16207;
+  --warning-dark: #facc15;
 
   /* Fallback for browsers without light-dark(): follow the system preference only. */
   --color-background: var(--background-light);
@@ -43,6 +47,8 @@
   --color-voltage: var(--voltage-light);
   --color-current: var(--current-light);
   --color-power: var(--power-light);
+  --color-input: var(--input-light);
+  --color-warning: var(--warning-light);
 
   @media (prefers-color-scheme: dark) {
     --color-background: var(--background-dark);
@@ -57,6 +63,8 @@
     --color-voltage: var(--voltage-dark);
     --color-current: var(--current-dark);
     --color-power: var(--power-dark);
+    --color-input: var(--input-dark);
+    --color-warning: var(--warning-dark);
   }
 
   /* light-dark() follows the color-scheme property, so the theme toggle works. */
@@ -73,6 +81,8 @@
     --color-voltage: light-dark(var(--voltage-light), var(--voltage-dark));
     --color-current: light-dark(var(--current-light), var(--current-dark));
     --color-power: light-dark(var(--power-light), var(--power-dark));
+    --color-input: light-dark(var(--input-light), var(--input-dark));
+    --color-warning: light-dark(var(--warning-light), var(--warning-dark));
   }
 
   --chart-grid: color-mix(in srgb, var(--color-muted) 25%, transparent);
@@ -667,4 +677,37 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
 .install-button {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+/* Power supply page */
+.readout.input { --tint: var(--color-input); }
+.dps-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.badge {
+  --tint: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--tint) 50%, var(--color-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tint) 12%, transparent);
+  color: var(--tint);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.badge[data-state="on"], .badge[data-state="ok"] { --tint: var(--color-success); }
+.badge[data-state="warn"] { --tint: var(--color-warning); }
+.badge[data-state="error"] { --tint: var(--color-danger); }
+button.output-button { font-weight: 600; }
+button.output-button[data-state="on"] {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-background);
+}
+.device-controls { margin-top: 12px; }
+.table-scroll { overflow-x: auto; }
+.preset-table th[scope="row"] { font-size: 0.9rem; color: var(--color-text); }
+.preset-table td, .preset-table th { white-space: nowrap; }
+@container (max-width: 520px) {
+  .readouts:has(> .readout:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
