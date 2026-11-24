@@ -23,6 +23,7 @@
   let recording = null; // { dump, records, summary }
   let drawScheduled = false;
   let deviceMode = null; // 'firm', 'boot' or null.
+  let badPacketCount = 0;
   let firmware = null; // { bytes, name, sha256, isOfficial }
   let flashing = false;
 
@@ -39,6 +40,26 @@
   function setStatus(text, state = '') {
     element('status-text').textContent = text;
     element('status-dot').className = 'dot' + (state ? ' ' + state : '');
+    // The connection badge shows the same state in short words.
+    let badgeText = text;
+    let badgeState = state === 'on' ? 'ok' : state === 'error' ? 'error' : 'neutral';
+    if (text === 'Connected') badgeText = `Polling every ${Number(Stepper.segmentedValue(element('poll-interval'))) / 1000} s`;
+    if (text === 'Connected, paused') {
+      badgeText = 'Paused';
+      badgeState = 'warn';
+    }
+    setBadge('badge-connection', badgeText, badgeState);
+  }
+
+  function setBadge(id, text, state) {
+    const badge = element(id);
+    badge.textContent = text;
+    badge.dataset.state = state;
+  }
+
+  function countBadPacket(reset = false) {
+    badPacketCount = reset ? 0 : badPacketCount + 1;
+    setBadge('badge-packets', `Bad packets ${badPacketCount}`, badPacketCount ? 'warn' : 'ok');
   }
 
   function setConnectedUi(connected) {
@@ -96,6 +117,7 @@
     newConnection.onclose = (error) => onConnectionLost(newConnection, error);
     connection = newConnection;
     setConnectedUi(true);
+    countBadPacket(true);
     addLogLine('Port open (115200 8N1, DTR and RTS on).');
 
     try {
@@ -165,6 +187,7 @@
       } catch (error) {
         if (loopId !== pollingLoopId || connection !== activeConnection) break;
         failedPolls++;
+        countBadPacket();
         addLogLine(error.message);
         if (failedPolls >= MAX_FAILED_POLLS) {
           addLogLine(`${MAX_FAILED_POLLS} getva requests failed. Polling stops. Replug the meter, then connect again.`);
@@ -175,7 +198,7 @@
         setStatus(`No valid response (${failedPolls}/${MAX_FAILED_POLLS})`, 'error');
         await activeConnection.discardUntilSilent(300).catch(() => {});
       }
-      const pollIntervalMilliseconds = Number(element('poll-interval').value);
+      const pollIntervalMilliseconds = Number(Stepper.segmentedValue(element('poll-interval')));
       await sleep(Math.max(0, pollIntervalMilliseconds - (performance.now() - pollStartTime)));
     }
   }
@@ -242,7 +265,7 @@
     const startTime = samples.length ? samples[0].time : 0;
     const times = samples.map((sample) => (sample.time - startTime) / 1000);
     const lastTime = times.length ? times[times.length - 1] : 0;
-    const windowSeconds = Number(element('chart-window').value);
+    const windowSeconds = Number(Stepper.segmentedValue(element('chart-window')));
     const timeEnd = windowSeconds ? Math.max(lastTime, windowSeconds) : Math.max(lastTime, 10);
     const timeStart = windowSeconds ? timeEnd - windowSeconds : 0;
     drawCharts(LIVE_CHARTS, times, samples, timeStart, timeEnd);
@@ -375,6 +398,9 @@
 
   function setDeviceMode(mode) {
     deviceMode = mode;
+    if (mode === 'firm') setBadge('badge-mode', 'Firmware mode', 'ok');
+    else if (mode === 'boot') setBadge('badge-mode', 'Bootloader mode', 'warn');
+    else setBadge('badge-mode', mode ? `Mode "${mode}"` : 'Mode –', mode ? 'warn' : 'neutral');
     const label = mode === 'boot' ? 'bootloader' : mode === 'firm' ? 'firmware (normal)' : 'unknown';
     element('update-mode').textContent = label;
     refreshFlashButton();
@@ -479,6 +505,10 @@
       saveFile(`tc66-live-${fileTimestamp()}.csv`, TC66.samplesToCsv(samples), 'text/csv');
     });
     element('chart-window').addEventListener('change', scheduleDraw);
+    element('poll-interval').addEventListener('change', () => {
+      if (element('status-text').textContent === 'Connected') setStatus('Connected', 'on');
+    });
+    Stepper.enhance();
     document.querySelectorAll('button[data-command]').forEach((button) => {
       button.addEventListener('click', () => sendScreenCommand(button));
     });

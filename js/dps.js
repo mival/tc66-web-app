@@ -519,6 +519,12 @@
       return decodePreset(registers, this.scaling);
     }
 
+    // Write U-SET and I-SET into a memory group (function 0x10).
+    // The other 6 registers of the group (OVP, OCP, OPP, B-LED, M-PRE, S-INI) do not change.
+    async savePresetSetpoints(index, volts, amps) {
+      return this.writeRegisters(presetAddress(index), [this.voltageToRegister(volts), this.currentToRegister(amps)]);
+    }
+
     // Load the memory group into the active settings.
     async recallPreset(index) {
       presetAddress(index); // Check the range.

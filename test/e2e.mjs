@@ -170,7 +170,7 @@ try {
   check('theme cycles auto, light, dark', themeStart === 'auto' && themeLight === 'light|light' && themeDark === 'dark|dark' && themeBack === 'auto|light dark',
     `${themeStart} ${themeLight} ${themeDark} ${themeBack}`);
 
-  await evaluate(`document.getElementById('poll-interval').value = '250'`);
+  await click('input[name="poll-interval"][value="250"]');
   await click('#connect');
   await sleep(2500);
   const serialLog = await evaluate('window.__serialLog');
@@ -188,6 +188,11 @@ try {
   const pageLog = await textOf('log');
   const status = await textOf('status-text');
   check('corrupted packet is logged and polling continues', /packet headers|CRC/.test(pageLog) && status === 'Connected', status);
+  const badges = await evaluate(`['badge-connection', 'badge-mode', 'badge-packets'].map((id) => document.getElementById(id).textContent).join(' | ')`);
+  check('badges show polling, the mode and the bad packet', badges === 'Polling every 0.25 s | Firmware mode | Bad packets 1', badges);
+  await click('label:has(#sample-period) .step-button[aria-label="Increase sample period"]');
+  check('sample period arrow steps the value', await evaluate(`document.getElementById('sample-period').value`) === '11');
+  await click('label:has(#sample-period) .step-button[aria-label="Decrease sample period"]');
 
   await click('[data-command=nextp]');
   await click('[data-command=lastp]');

@@ -148,7 +148,7 @@
         if (failures >= 3) { addLogLine('Three reads failed. Polling stops.'); await disconnect(); break; }
         await active.discardUntilSilent(300).catch(() => {});
       }
-      const interval = Number(element('sample-interval').value);
+      const interval = Number(Stepper.segmentedValue(element('sample-interval')));
       await sleep(Math.max(0, interval - (performance.now() - startTime)));
     }
   }
@@ -449,6 +449,7 @@
   // ---------- Events ----------
 
   function init() {
+    Stepper.enhance();
     if (!('serial' in navigator)) {
       element('unsupported').hidden = false;
       element('connect').disabled = true;

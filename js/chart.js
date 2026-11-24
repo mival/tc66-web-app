@@ -77,6 +77,7 @@
     context.font = `11px ${style.fontFamily}`;
     context.fillStyle = textColor;
     context.textBaseline = 'top';
+    context.textAlign = 'left'; // The last draw can leave 'right' set on the context.
     context.fillText(label, PADDING_LEFT, 2);
 
     const timeStart = options.timeStart;

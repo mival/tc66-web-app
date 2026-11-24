@@ -41,8 +41,9 @@ The data stays in the browser. To see a test on another device, export the JSON 
 
 - Live output voltage, output current, power and input voltage, with charts.
 - The CV/CC mode, the protection state (OVP, OCP, OPP), the output state and the key lock.
-- Set the voltage and the current limit, switch the output on and off, lock the keys, set the brightness.
-- Read the memory groups M0-M9 and recall one of them.
+- Set the voltage and the current limit with arrow buttons, the arrow keys or a typed value. Choose the step size.
+- Switch the output on and off, lock the keys, set the brightness.
+- Read the memory groups M0-M9, recall one of them, or save the current U and I into one.
 - Save the live samples as CSV.
 - A wired COM port, a paired Bluetooth COM port, or a direct Bluetooth RFCOMM port in newer Chrome.
 
@@ -72,6 +73,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `css/style.css` | Styles, light and dark color scheme, phone layout |
 | `js/tc66.js` | AES-256 decryption, packet parsers, CSV export, serial transport |
 | `js/chart.js` | Canvas strip chart (meter page) |
+| `js/stepper.js` | Arrow buttons for number inputs, value of a segmented control |
 | `js/uchart.js` | Interactive uPlot chart wrapper (battery page) |
 | `js/vendor/uplot/` | uPlot chart library |
 | `js/app.js` | Meter page logic |

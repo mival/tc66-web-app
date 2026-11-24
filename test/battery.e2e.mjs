@@ -139,7 +139,7 @@ try {
 
   // Poll at 1 Hz. Set a rated capacity so the efficiency shows.
   await evaluate(`
-    document.getElementById('sample-interval').value = '1000';
+    document.querySelector('input[name="sample-interval"][value="1000"]').checked = true;
     document.getElementById('rated-mah').value = '10000';
     document.getElementById('nominal-v').value = '3.7';
     document.getElementById('stop-hold').value = '1';

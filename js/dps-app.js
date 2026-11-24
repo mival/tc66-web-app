@@ -6,6 +6,9 @@
   const MAX_SAMPLE_COUNT = 200000;
   const MAX_FAILED_POLLS = 3;
   const MAX_LOG_LINES = 300;
+  const SEND_DELAY_MILLISECONDS = 350; // Pause after the last step before the page sends the value.
+  const REPEAT_DELAY_MILLISECONDS = 400; // Hold time before an arrow button repeats.
+  const REPEAT_INTERVAL_MILLISECONDS = 90;
 
   const LIVE_CHARTS = [
     { canvasId: 'chart-voltage', field: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 2, label: 'Output voltage' },
@@ -14,13 +17,34 @@
     { canvasId: 'chart-input-voltage', field: 'inputVoltage', colorToken: '--color-input', unit: 'V', decimals: 2, label: 'Input voltage' },
   ];
 
+  // The two setpoints. Each one has an input, arrow buttons, a step size and a status line.
+  const SETPOINTS = {
+    voltage: {
+      inputId: 'set-voltage', statusId: 'set-voltage-status', stepName: 'voltage-step', unit: 'V', name: 'Voltage',
+      field: 'voltageSet', decimalsKey: 'voltageDecimals', maxKey: 'maxVoltage',
+      write: (port, value) => port.setVoltage(value),
+    },
+    current: {
+      inputId: 'set-current', statusId: 'set-current-status', stepName: 'current-step', unit: 'A', name: 'Current limit',
+      field: 'currentSet', decimalsKey: 'currentDecimals', maxKey: 'maxCurrent',
+      write: (port, value) => port.setCurrent(value),
+    },
+  };
+  for (const setpoint of Object.values(SETPOINTS)) {
+    setpoint.timer = null;
+    setpoint.pending = false; // A value waits to be sent or is being sent.
+    setpoint.lastSent = null;
+    setpoint.sequence = 0; // Counts the scheduled sends. A finished send checks that no newer one started.
+  }
+
   let connection = null;
   let poller = null;
   let samples = [];
   let lastStatus = null;
-  let fillSetInputs = true; // Copy U-SET and I-SET into the form on the next reading.
+  let fillSetInputs = true; // Copy U-SET and I-SET into the inputs on the next reading, even if one has focus.
   let drawScheduled = false;
   let readingPresets = false;
+  let switchBusy = false;
 
   // ---------- Log and status ----------
 
@@ -41,13 +65,26 @@
     element('connect').disabled = connected;
     element('disconnect').disabled = !connected;
     element('pause').disabled = !connected;
-    element('apply-set').disabled = !connected;
-    element('output-toggle').disabled = !connected;
-    element('lock-toggle').disabled = !connected;
+    element('output-switch').disabled = !connected;
+    element('lock-switch').disabled = !connected;
     element('brightness').disabled = !connected;
     element('read-presets').disabled = !connected || readingPresets;
+    for (const setpoint of Object.values(SETPOINTS)) {
+      const input = element(setpoint.inputId);
+      input.disabled = !connected;
+      input.closest('.setpoint').querySelectorAll('button, input[type="radio"]').forEach((control) => { control.disabled = !connected; });
+      if (!connected) {
+        clearTimeout(setpoint.timer);
+        setpoint.pending = false;
+        element(setpoint.statusId).textContent = '';
+      }
+    }
     ['port-kind', 'baud-rate', 'slave-address'].forEach((id) => { element(id).disabled = connected; });
-    document.querySelectorAll('button[data-recall]').forEach((button) => { button.disabled = !connected; });
+    document.querySelectorAll('button[data-recall], button[data-save]').forEach((button) => { button.disabled = !connected; });
+    if (!connected) {
+      fillSetInputs = true;
+      element('output-state').textContent = '–';
+    }
   }
 
   function fileTimestamp() {
@@ -169,7 +206,7 @@
     const activeConnection = connection;
     poller = new DPS.Poller({
       read: () => activeConnection.readStatus(),
-      interval: () => Number(element('poll-interval').value),
+      interval: () => Number(Stepper.segmentedValue(element('poll-interval'))),
       maxFailures: MAX_FAILED_POLLS,
       onReading: (status) => {
         if (connection !== activeConnection) return;
@@ -215,7 +252,7 @@
     return Number.isFinite(value) ? value.toFixed(decimals) : '–';
   }
 
-  function scalingDecimals() {
+  function currentScaling() {
     return connection ? connection.scaling : DPS.modelScaling(3005);
   }
 
@@ -223,10 +260,12 @@
     element('device-model').textContent = `${scaling.name} (${status.model})`;
     element('device-firmware').textContent = status.version;
     element('device-range').textContent = `0–${scaling.maxVoltage} V · 0–${scaling.maxCurrent} A`;
-    element('set-voltage').max = String(scaling.maxVoltage);
-    element('set-current').max = String(scaling.maxCurrent);
-    element('set-voltage').step = String(10 ** -scaling.voltageDecimals);
-    element('set-current').step = String(10 ** -scaling.currentDecimals);
+    for (const setpoint of Object.values(SETPOINTS)) {
+      const input = element(setpoint.inputId);
+      input.max = String(scaling[setpoint.maxKey]);
+      input.step = String(10 ** -scaling[setpoint.decimalsKey]);
+      input.closest('.setpoint').querySelector('[data-max]').textContent = String(scaling[setpoint.maxKey]);
+    }
   }
 
   function setBadge(id, text, state) {
@@ -239,7 +278,8 @@
     lastStatus = status;
     samples.push({ time: Date.now(), ...status });
     if (samples.length > MAX_SAMPLE_COUNT) samples.splice(0, samples.length - MAX_SAMPLE_COUNT);
-    const { voltageDecimals, currentDecimals, powerDecimals } = scalingDecimals();
+    const scaling = currentScaling();
+    const { voltageDecimals, currentDecimals, powerDecimals } = scaling;
 
     element('value-voltage').textContent = formatValue(status.voltage, voltageDecimals);
     element('value-current').textContent = formatValue(status.current, currentDecimals);
@@ -256,18 +296,30 @@
       status.protection === 'OK' ? 'ok' : 'error');
     setBadge('badge-lock', status.locked ? 'Keys locked' : 'Keys free', status.locked ? 'warn' : 'neutral');
 
-    const outputButton = element('output-toggle');
-    outputButton.textContent = status.outputOn ? 'Output: on — switch off' : 'Output: off — switch on';
-    outputButton.dataset.state = status.outputOn ? 'on' : 'off';
-    element('lock-toggle').textContent = status.locked ? 'Unlock keys' : 'Lock keys';
-    const brightness = element('brightness');
-    if (document.activeElement !== brightness) brightness.value = String(status.brightness);
-
-    if (fillSetInputs) {
-      fillSetInputs = false;
-      element('set-voltage').value = status.voltageSet.toFixed(voltageDecimals);
-      element('set-current').value = status.currentSet.toFixed(currentDecimals);
+    if (!switchBusy) {
+      element('output-switch').checked = status.outputOn;
+      element('lock-switch').checked = status.locked;
     }
+    element('output-state').textContent = status.outputOn ? 'on' : 'off';
+    document.querySelector('.output-panel').dataset.output = status.outputOn ? 'on' : 'off';
+
+    const brightness = element('brightness');
+    if (document.activeElement !== brightness) {
+      brightness.value = String(status.brightness);
+      showBrightness();
+    }
+
+    // Show the supply value in an input, unless the user edits it or a value waits to be sent.
+    for (const setpoint of Object.values(SETPOINTS)) {
+      const input = element(setpoint.inputId);
+      // An invalid entry stays with its error message until the user corrects it or presses Escape.
+      const editing = document.activeElement === input || setpoint.pending || input.getAttribute('aria-invalid') === 'true';
+      if (fillSetInputs || !editing) {
+        input.value = status[setpoint.field].toFixed(scaling[setpoint.decimalsKey]);
+        markInvalid(input, false);
+      }
+    }
+    fillSetInputs = false;
     scheduleDraw();
   }
 
@@ -293,7 +345,7 @@
     const startTime = samples.length ? samples[0].time : 0;
     const times = samples.map((sample) => (sample.time - startTime) / 1000);
     const lastTime = times.length ? times[times.length - 1] : 0;
-    const windowSeconds = Number(element('chart-window').value);
+    const windowSeconds = Number(Stepper.segmentedValue(element('chart-window')));
     const timeEnd = windowSeconds ? Math.max(lastTime, windowSeconds) : Math.max(lastTime, 10);
     const timeStart = windowSeconds ? timeEnd - windowSeconds : 0;
     for (const chart of LIVE_CHARTS) {
@@ -325,23 +377,164 @@
     }
   }
 
-  async function applySetValues(event) {
-    event.preventDefault();
-    const volts = Number(element('set-voltage').value);
-    const amps = Number(element('set-current').value);
-    const { voltageDecimals, currentDecimals } = scalingDecimals();
-    await runCommand(`Set U = ${volts.toFixed(voltageDecimals)} V, I = ${amps.toFixed(currentDecimals)} A`,
-      (port) => port.setVoltageAndCurrent(volts, amps));
+  // ---------- Setpoints ----------
+
+  // Show or remove the error state of an input. The error text is linked with aria-describedby only while it shows.
+  function markInvalid(input, invalid) {
+    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    const errorId = input.dataset.error;
+    const ids = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter((id) => id && id !== errorId);
+    if (invalid) ids.push(errorId);
+    input.setAttribute('aria-describedby', ids.join(' '));
   }
 
-  function toggleOutput() {
-    const switchOn = !(lastStatus && lastStatus.outputOn);
-    return runCommand(`Output ${switchOn ? 'on' : 'off'}`, (port) => port.setOutput(switchOn));
+  function stepSize(setpoint) {
+    const checked = document.querySelector(`input[name="${setpoint.stepName}"]:checked`);
+    return checked ? Number(checked.value) : 1;
   }
 
-  function toggleLock() {
-    const lock = !(lastStatus && lastStatus.locked);
-    return runCommand(lock ? 'Lock keys' : 'Unlock keys', (port) => port.setLock(lock));
+  // Change the value by a number of steps. Clamp it to the model range. Send it after a short pause.
+  function nudge(setpoint, stepCount) {
+    if (!connection) return;
+    const input = element(setpoint.inputId);
+    const scaling = currentScaling();
+    const decimals = scaling[setpoint.decimalsKey];
+    const step = stepSize(setpoint);
+    const current = Number(input.value) || 0;
+    // Snap to the step grid first, so 5.03 + 0.1 gives 5.1, not 5.13.
+    const snapped = stepCount > 0 ? Math.floor(current / step + 1e-9) * step : Math.ceil(current / step - 1e-9) * step;
+    const base = Math.abs(snapped - current) > 1e-9 ? snapped : current;
+    const next = Math.min(scaling[setpoint.maxKey], Math.max(0, base + stepCount * step));
+    input.value = next.toFixed(decimals);
+    markInvalid(input, false);
+    scheduleSend(setpoint, SEND_DELAY_MILLISECONDS);
+  }
+
+  function scheduleSend(setpoint, delay) {
+    clearTimeout(setpoint.timer);
+    setpoint.pending = true;
+    setpoint.sequence++;
+    element(setpoint.statusId).textContent = delay ? 'Waiting…' : '';
+    setpoint.timer = setTimeout(() => sendSetpoint(setpoint), delay);
+  }
+
+  async function sendSetpoint(setpoint) {
+    clearTimeout(setpoint.timer);
+    const input = element(setpoint.inputId);
+    const status = element(setpoint.statusId);
+    if (!connection) {
+      setpoint.pending = false;
+      return;
+    }
+    if (input.value === '' || !input.validity.valid) {
+      setpoint.pending = false;
+      status.textContent = '';
+      markInvalid(input, true);
+      return;
+    }
+    markInvalid(input, false);
+    const scaling = currentScaling();
+    const value = Number(input.value);
+    const text = `${value.toFixed(scaling[setpoint.decimalsKey])} ${setpoint.unit}`;
+    // Do not send the same value again, for example on Enter and then on blur.
+    const deviceValue = lastStatus ? lastStatus[setpoint.field] : null;
+    if (value === setpoint.lastSent && value === deviceValue) {
+      setpoint.pending = false;
+      return;
+    }
+    status.textContent = `Sending ${text}…`;
+    const sequence = setpoint.sequence;
+    const sent = await runCommand(`${setpoint.name} ${text}`, (port) => setpoint.write(port, value));
+    if (sent) setpoint.lastSent = value;
+    // A new step during the write starts a new send. Then the value still waits and the status stays.
+    if (sequence !== setpoint.sequence) return;
+    setpoint.pending = false;
+    status.textContent = sent ? `✓ Set to ${text}` : `Failed to set ${text}. See the log.`;
+  }
+
+  // An arrow button steps once on a click and repeats while the pointer holds it.
+  function bindStepButton(button, setpoint) {
+    const direction = Number(button.dataset.step);
+    let delayTimer = null;
+    let repeatTimer = null;
+    let repeated = false;
+    const stop = () => {
+      clearTimeout(delayTimer);
+      clearInterval(repeatTimer);
+      delayTimer = null;
+      repeatTimer = null;
+    };
+    button.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || button.disabled) return;
+      repeated = false;
+      stop();
+      delayTimer = setTimeout(() => {
+        repeated = true;
+        nudge(setpoint, direction);
+        repeatTimer = setInterval(() => nudge(setpoint, direction), REPEAT_INTERVAL_MILLISECONDS);
+      }, REPEAT_DELAY_MILLISECONDS);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach((type) => button.addEventListener(type, stop));
+    // A click comes from a short press, Enter or Space. After a repeat, the click is not a new step.
+    button.addEventListener('click', () => {
+      if (repeated) {
+        repeated = false;
+        return;
+      }
+      nudge(setpoint, direction);
+    });
+    button.addEventListener('contextmenu', (event) => event.preventDefault());
+  }
+
+  function bindSetpoint(setpoint) {
+    const input = element(setpoint.inputId);
+    const fieldset = input.closest('.setpoint');
+    fieldset.querySelectorAll('.step-button').forEach((button) => bindStepButton(button, setpoint));
+    input.addEventListener('keydown', (event) => {
+      const steps = { ArrowUp: 1, ArrowDown: -1, PageUp: 10, PageDown: -10 }[event.key];
+      if (steps) {
+        event.preventDefault(); // The native number input steps by its own step attribute. Use the selected step.
+        nudge(setpoint, steps);
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        sendSetpoint(setpoint);
+      } else if (event.key === 'Escape') {
+        // Discard the edit and show the supply value again.
+        clearTimeout(setpoint.timer);
+        setpoint.pending = false;
+        if (lastStatus) input.value = lastStatus[setpoint.field].toFixed(currentScaling()[setpoint.decimalsKey]);
+        markInvalid(input, false);
+        element(setpoint.statusId).textContent = '';
+      }
+    });
+    input.addEventListener('input', () => {
+      setpoint.pending = true; // Keep the typed text until Enter or blur.
+      element(setpoint.statusId).textContent = 'Press Enter to send.';
+      if (input.validity.valid) markInvalid(input, false);
+    });
+    input.addEventListener('change', () => sendSetpoint(setpoint));
+    // The mouse wheel must not change the value of a supply by accident.
+    input.addEventListener('wheel', (event) => { if (document.activeElement === input) event.preventDefault(); }, { passive: false });
+  }
+
+  // ---------- Switches and brightness ----------
+
+  async function onSwitchChange(switchElement, describe, action) {
+    const wanted = switchElement.checked;
+    switchBusy = true;
+    switchElement.disabled = true;
+    const done = await runCommand(describe(wanted), (port) => action(port, wanted));
+    switchBusy = false;
+    switchElement.disabled = !connection;
+    if (!done) switchElement.checked = !wanted;
+  }
+
+  function showBrightness() {
+    const slider = element('brightness');
+    element('brightness-value').textContent = slider.value;
+    const progress = ((Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min))) * 100;
+    slider.style.setProperty('--slider-progress', `${progress}%`);
+    slider.setAttribute('aria-valuetext', `Level ${slider.value} of ${slider.max}`);
   }
 
   function changeBrightness() {
@@ -358,13 +551,14 @@
       const row = document.createElement('tr');
       row.id = `preset-${index}`;
       row.innerHTML = `<th scope="row">M${index}</th>` + '<td>–</td>'.repeat(7) +
-        `<td><button type="button" data-recall="${index}" disabled>Recall</button></td>`;
+        `<td class="preset-actions"><button type="button" data-recall="${index}" disabled>Recall</button>` +
+        `<button type="button" data-save="${index}" disabled aria-label="Save the current U and I into M${index}">Save U/I</button></td>`;
       body.append(row);
     }
   }
 
   function showPreset(index, preset) {
-    const { voltageDecimals, currentDecimals } = scalingDecimals();
+    const { voltageDecimals, currentDecimals } = currentScaling();
     const cells = element(`preset-${index}`).querySelectorAll('td');
     const values = [
       preset.voltageSet.toFixed(voltageDecimals),
@@ -404,6 +598,27 @@
     }
   }
 
+  // Save the current U-SET and I-SET of the supply into a group. The other fields of the group do not change.
+  async function savePreset(index) {
+    if (!connection || !lastStatus) return;
+    const { voltageDecimals, currentDecimals } = currentScaling();
+    const volts = lastStatus.voltageSet;
+    const amps = lastStatus.currentSet;
+    const text = `${volts.toFixed(voltageDecimals)} V and ${amps.toFixed(currentDecimals)} A`;
+    const question = index === 0
+      ? `Save ${text} into M0?\n\nThe supply loads M0 at power on. The OVP, OCP and OPP limits of M0 do not change.`
+      : `Save ${text} into M${index}?\n\nThe OVP, OCP and OPP limits of M${index} do not change.`;
+    if (!confirm(question)) return;
+    const activeConnection = connection;
+    const done = await runCommand(`Save ${text} into M${index}`, (port) => port.savePresetSetpoints(index, volts, amps));
+    if (!done || connection !== activeConnection) return;
+    try {
+      showPreset(index, await activeConnection.readPreset(index));
+    } catch (error) {
+      addLogLine(`Read M${index} failed: ${error.message}`);
+    }
+  }
+
   async function recallPreset(index) {
     const done = await runCommand(`Recall M${index}`, (port) => port.recallPreset(index));
     if (done) fillSetInputs = true;
@@ -426,19 +641,25 @@
       saveFile(`dps-live-${fileTimestamp()}.csv`, DPS.samplesToCsv(samples), 'text/csv');
     });
     element('chart-window').addEventListener('change', scheduleDraw);
-    element('set-form').addEventListener('submit', applySetValues);
-    element('output-toggle').addEventListener('click', toggleOutput);
-    element('lock-toggle').addEventListener('click', toggleLock);
+    Object.values(SETPOINTS).forEach(bindSetpoint);
+    element('output-switch').addEventListener('change', (event) => onSwitchChange(event.target,
+      (on) => `Output ${on ? 'on' : 'off'}`, (port, on) => port.setOutput(on)));
+    element('lock-switch').addEventListener('change', (event) => onSwitchChange(event.target,
+      (locked) => (locked ? 'Lock keys' : 'Unlock keys'), (port, locked) => port.setLock(locked)));
+    element('brightness').addEventListener('input', showBrightness);
     element('brightness').addEventListener('change', changeBrightness);
     element('read-presets').addEventListener('click', readPresets);
     element('preset-body').addEventListener('click', (event) => {
-      const button = event.target.closest('button[data-recall]');
-      if (button) recallPreset(Number(button.dataset.recall));
+      const recallButton = event.target.closest('button[data-recall]');
+      if (recallButton) recallPreset(Number(recallButton.dataset.recall));
+      const saveButton = event.target.closest('button[data-save]');
+      if (saveButton) savePreset(Number(saveButton.dataset.save));
     });
     new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
     Theme.init(scheduleDraw); // Redraw the charts when the scheme changes.
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
     setConnectedUi(false);
+    showBrightness();
     scheduleDraw();
   }
 

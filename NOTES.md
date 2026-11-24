@@ -153,6 +153,8 @@ DPS5005, which has the same registers and scaling as the DPS3005.
 - The PROTECT and CV/CC values. They come from the RDTech protocol document, which was not found online in this session.
 - Recall with register 0x23. DPS5005_pyGUI limits this register to 0-1. The page writes 0-9.
 - The 0x10 stride of the memory groups. DPS5005_pyGUI reads only M0 at 0x50-0x57.
+- Save U/I: the page writes U-SET and I-SET of a group with function 0x10 (2 registers at 0x50 + 0x10·n).
+  Check that the supply keeps the values after a power cycle.
 - The scaling of DPS5015, DPS5020 and DPS8005 in `MODELS` (`js/dps.js`). They are estimates.
 
 ### Hardware test checklist

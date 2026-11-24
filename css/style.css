@@ -698,16 +698,224 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
 .badge[data-state="on"], .badge[data-state="ok"] { --tint: var(--color-success); }
 .badge[data-state="warn"] { --tint: var(--color-warning); }
 .badge[data-state="error"] { --tint: var(--color-danger); }
-button.output-button { font-weight: 600; }
-button.output-button[data-state="on"] {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: var(--color-background);
+.device-controls { margin-top: 14px; display: grid; gap: 14px; }
+
+/* Switch: <input type="checkbox" switch role="switch">. Chrome and Firefox have no native switch yet,
+   so the same style draws the track and the thumb in all browsers. The thumb is a background layer. */
+.switch-field { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; min-block-size: var(--target-size); }
+input[type="checkbox"][switch] {
+  --switch-width: 2.75rem;
+  --switch-height: 1.5rem;
+  --thumb-size: calc(var(--switch-height) - 6px);
+  appearance: none;
+  flex: none;
+  margin: 0;
+  inline-size: var(--switch-width);
+  block-size: var(--switch-height);
+  border: 1px solid color-mix(in srgb, var(--color-muted) 80%, var(--color-border));
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--color-muted) 30%, var(--color-panel));
+  background-image: radial-gradient(circle closest-side, #fff 92%, transparent 100%);
+  background-repeat: no-repeat;
+  background-size: var(--thumb-size) var(--thumb-size);
+  background-position: 2px center;
+  cursor: pointer;
 }
-.device-controls { margin-top: 12px; }
+input[type="checkbox"][switch]:checked {
+  border-color: var(--color-success);
+  background-color: var(--color-success);
+  background-position: right 2px center;
+}
+input[type="checkbox"][switch]:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+input[type="checkbox"][switch]:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (prefers-reduced-motion: no-preference) {
+  input[type="checkbox"][switch] { transition: background-position 0.15s ease, background-color 0.15s ease; }
+}
+.switch-large input[type="checkbox"][switch] { --switch-width: 3.75rem; --switch-height: 2rem; }
+.switch-large { font-weight: 600; font-size: 1.05rem; }
+.switch-large b { font-variant-numeric: tabular-nums; }
+
+/* Output panel: a colored edge shows the output state. */
+.output-panel { border-inline-start: 4px solid var(--color-border); }
+.output-panel[data-output="on"] { border-inline-start-color: var(--color-success); }
+.output-panel[data-output="on"] #output-state { color: var(--color-success); }
+.output-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 12px; }
+.output-head h2 { margin: 0; }
+
+.setpoints { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 12px; }
+fieldset.setpoint {
+  margin: 0;
+  min-inline-size: 0;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-muted) 5%, transparent);
+}
+.setpoint > legend {
+  padding: 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.setpoint-readback { text-transform: none; letter-spacing: 0; font-weight: 400; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
+.setpoint[data-setpoint="voltage"] { --tint: var(--color-voltage); }
+.setpoint[data-setpoint="current"] { --tint: var(--color-current); }
+
+.setpoint-dial { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.step-button {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: max(var(--target-size), 2.75rem);
+  min-block-size: max(var(--target-size), 2.75rem);
+  padding: 0;
+  border-radius: 10px;
+  color: var(--tint);
+  touch-action: manipulation; /* No double-tap zoom on fast taps. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.step-button:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+.setpoint-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  min-inline-size: 0;
+}
+.setpoint-value input {
+  inline-size: 6.5ch; /* Fallback width. field-sizing fits the input to the number where supported. */
+  field-sizing: content;
+  min-inline-size: 3ch;
+  max-inline-size: 100%;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tint);
+  font-size: clamp(1.6rem, 1.1rem + 2.5cqi, 2.4rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield; /* Hide the small native spin buttons. The page has its own arrows. */
+  -moz-appearance: textfield;
+}
+.setpoint-value input::-webkit-inner-spin-button,
+.setpoint-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.setpoint-value input:hover:not(:disabled) { border-color: var(--color-border); }
+.setpoint-value input:focus-visible { outline: none; border-color: var(--tint); background: var(--color-background); }
+.setpoint-unit { color: var(--color-muted); font-size: 1rem; }
+
+/* Show the error only after interaction (:user-invalid), or after the page refused to send (aria-invalid). */
+.error-msg { display: none; margin: 6px 0 0; color: var(--color-danger); font-size: 0.85rem; }
+.setpoint-value input:is(:user-invalid, [aria-invalid="true"]) { border-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 10%, transparent); }
+.setpoint:has(input:is(:user-invalid, [aria-invalid="true"])) .error-msg { display: block; }
+
+/* Segmented control: radio buttons in a fieldset, drawn as one row of buttons.
+   Used for the step size, the poll interval and the chart window. --tint sets the color. */
+fieldset.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+.setpoint fieldset.segmented { margin-top: 10px; }
+.segmented legend { float: inline-start; margin-inline-end: 6px; font-size: 0.8rem; color: var(--color-muted); }
+.segmented label {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--target-size);
+  min-block-size: var(--target-size);
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.segmented input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.segmented label:has(input:checked) {
+  border-color: var(--tint, var(--color-accent));
+  background: color-mix(in srgb, var(--tint, var(--color-accent)) 14%, transparent);
+  color: var(--tint, var(--color-accent));
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--tint, var(--color-accent)); /* A second cue next to the color. */
+}
+.segmented label:has(input:focus-visible) { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+.segmented label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.setpoint-status { min-block-size: 1lh; margin: 6px 0 0; font-size: 0.8rem; color: var(--color-muted); }
+
+/* Brightness: a native range slider with a filled track. js/dps-app.js sets --slider-progress. */
+.brightness-field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; }
+.brightness-field label { grid-column: 1 / -1; color: var(--color-muted); font-size: 0.85rem; }
+.brightness-field output { min-inline-size: 2ch; font-weight: 600; font-variant-numeric: tabular-nums; text-align: end; }
+input[type="range"] {
+  --slider-track-size: 0.5rem;
+  --slider-thumb-size: 1.25rem;
+  --slider-fill-color: var(--color-accent);
+  --slider-track-color: color-mix(in srgb, var(--color-muted) 45%, transparent);
+  --slider-progress: 0%;
+  appearance: none;
+  inline-size: 100%;
+  block-size: 2.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:disabled { opacity: 0.5; cursor: not-allowed; }
+input[type="range"]:focus-visible { outline: 2px solid var(--slider-fill-color); outline-offset: 4px; }
+input[type="range"]::-webkit-slider-runnable-track {
+  block-size: var(--slider-track-size);
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--slider-fill-color) var(--slider-progress), var(--slider-track-color) var(--slider-progress));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2);
+  border: 2px solid var(--color-panel);
+  border-radius: 50%;
+  background: var(--slider-fill-color);
+}
+input[type="range"]::-moz-range-track { block-size: var(--slider-track-size); border-radius: 999px; background: var(--slider-track-color); }
+input[type="range"]::-moz-range-progress { block-size: var(--slider-track-size); border-radius: 999px; background: var(--slider-fill-color); }
+input[type="range"]::-moz-range-thumb {
+  inline-size: var(--slider-thumb-size);
+  block-size: var(--slider-thumb-size);
+  border: 2px solid var(--color-panel);
+  border-radius: 50%;
+  background: var(--slider-fill-color);
+}
 .table-scroll { overflow-x: auto; }
 .preset-table th[scope="row"] { font-size: 0.9rem; color: var(--color-text); }
 .preset-table td, .preset-table th { white-space: nowrap; }
 @container (max-width: 520px) {
   .readouts:has(> .readout:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.preset-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Number input with arrow buttons. js/stepper.js adds the buttons to input[data-stepper]. */
+.stepper { display: inline-flex; align-items: stretch; gap: 4px; min-inline-size: 0; }
+.stepper input { inline-size: 7em; min-inline-size: 0; text-align: center; font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button, .stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper .step-button { min-inline-size: var(--target-size); min-block-size: var(--target-size); border-radius: 8px; color: var(--color-accent); }
+.field-grid .stepper { inline-size: 100%; }
+.field-grid .stepper input { flex: 1; inline-size: auto; }
+/* Show the error only after interaction. */
+input:user-invalid { border-color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 10%, transparent); }
+.field-error { display: none; color: var(--color-danger); font-size: 0.8rem; }
+label:has(input:user-invalid) .field-error, .field-error.shown { display: block; }
+/* Chart controls: the segmented choices and the buttons above the charts. */
+.chart-controls { display: grid; gap: 10px; }
+.auto-row { margin-top: 10px; }
+.auto-row + .row { margin-top: 12px; }

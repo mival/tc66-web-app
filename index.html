@@ -40,6 +40,11 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 
   <section aria-labelledby="live-heading">
     <h2 id="live-heading">Live</h2>
+    <div class="dps-badges" aria-label="Meter state">
+      <span class="badge" id="badge-connection" data-state="neutral">Not connected</span>
+      <span class="badge" id="badge-mode" data-state="neutral">Mode –</span>
+      <span class="badge" id="badge-packets" data-state="neutral">Bad packets 0</span>
+    </div>
     <div class="readouts">
       <div class="readout voltage"><div class="label" data-unit="V">Voltage <button type="button" class="help-btn" popovertarget="help-voltage" aria-label="What is voltage?">?</button></div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
       <div class="readout current"><div class="label" data-unit="A">Current <button type="button" class="help-btn" popovertarget="help-current" aria-label="What is current?">?</button></div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
@@ -61,28 +66,41 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <div popover id="help-data-plus" class="help-pop">Voltage on the USB D+ data line. A charger sets D+ and D− to tell the device how much current it can draw. This is the charge mode.</div>
     <div popover id="help-data-minus" class="help-pop">Voltage on the USB D− data line. With D+, it shows the charger handshake, for example USB BC1.2 or Quick Charge.</div>
     <div popover id="help-sample-count" class="help-pop">Number of readings since you connected.</div>
+  </section>
+
+  <section aria-labelledby="screen-heading">
+    <h2 id="screen-heading">Meter screen</h2>
     <div class="row">
-      <label>Poll every
-        <select id="poll-interval">
-          <option value="250">0.25 s</option>
-          <option value="500" selected>0.5 s</option>
-          <option value="1000">1 s</option>
-          <option value="2000">2 s</option>
-          <option value="5000">5 s</option>
-        </select>
-      </label>
-      <label>Show
-        <select id="chart-window">
-          <option value="60">1 min</option>
-          <option value="300" selected>5 min</option>
-          <option value="900">15 min</option>
-          <option value="3600">1 h</option>
-          <option value="0">all</option>
-        </select>
-      </label>
-      <button id="pause" disabled>Pause</button>
-      <button id="clear">Clear samples</button>
-      <button id="save-live" disabled>Save live CSV</button>
+      <button data-command="lastp" disabled>◀ Previous page</button>
+      <button data-command="nextp" disabled>Next page ▶</button>
+      <button data-command="rotat" disabled>⟳ Rotate</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="charts-heading">
+    <h2 id="charts-heading">Charts</h2>
+    <div class="chart-controls">
+      <fieldset class="segmented" id="poll-interval">
+        <legend>Poll every</legend>
+        <label><input type="radio" name="poll-interval" value="250"><span>0.25 s</span></label>
+        <label><input type="radio" name="poll-interval" value="500" checked><span>0.5 s</span></label>
+        <label><input type="radio" name="poll-interval" value="1000"><span>1 s</span></label>
+        <label><input type="radio" name="poll-interval" value="2000"><span>2 s</span></label>
+        <label><input type="radio" name="poll-interval" value="5000"><span>5 s</span></label>
+      </fieldset>
+      <fieldset class="segmented" id="chart-window">
+        <legend>Show</legend>
+        <label><input type="radio" name="chart-window" value="60"><span>1 min</span></label>
+        <label><input type="radio" name="chart-window" value="300" checked><span>5 min</span></label>
+        <label><input type="radio" name="chart-window" value="900"><span>15 min</span></label>
+        <label><input type="radio" name="chart-window" value="3600"><span>1 h</span></label>
+        <label><input type="radio" name="chart-window" value="0"><span>all</span></label>
+      </fieldset>
+      <div class="row">
+        <button id="pause" disabled>Pause</button>
+        <button id="clear">Clear samples</button>
+        <button id="save-live" disabled>Save live CSV</button>
+      </div>
     </div>
     <div class="charts" role="img" aria-label="Charts of voltage, current and power over time. The current values are shown above.">
       <canvas class="strip" id="chart-voltage"></canvas>
@@ -91,34 +109,23 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     </div>
   </section>
 
-  <div class="two-columns">
-    <section aria-labelledby="device-heading">
-      <h2 id="device-heading">Device</h2>
-      <dl class="info">
-        <dt>Model</dt><dd id="device-model">–</dd>
-        <dt>Firmware</dt><dd id="device-firmware">–</dd>
-        <dt>Serial</dt><dd id="device-serial">–</dd>
-        <dt>Run count</dt><dd id="device-run-count">–</dd>
-        <dt>Group 0</dt><dd id="device-group-0">–</dd>
-        <dt>Group 1</dt><dd id="device-group-1">–</dd>
-      </dl>
-      <p class="hint">Reset the groups with the buttons on the meter. No serial command for this is known.</p>
-    </section>
-
-    <section aria-labelledby="screen-heading">
-      <h2 id="screen-heading">Meter screen</h2>
-      <div class="row">
-        <button data-command="lastp" disabled>◀ Previous page</button>
-        <button data-command="nextp" disabled>Next page ▶</button>
-        <button data-command="rotat" disabled>⟳ Rotate</button>
-      </div>
-    </section>
-  </div>
+  <section aria-labelledby="device-heading">
+    <h2 id="device-heading">Device</h2>
+    <dl class="info">
+      <dt>Model</dt><dd id="device-model">–</dd>
+      <dt>Firmware</dt><dd id="device-firmware">–</dd>
+      <dt>Serial</dt><dd id="device-serial">–</dd>
+      <dt>Run count</dt><dd id="device-run-count">–</dd>
+      <dt>Group 0</dt><dd id="device-group-0">–</dd>
+      <dt>Group 1</dt><dd id="device-group-1">–</dd>
+    </dl>
+    <p class="hint">Reset the groups with the buttons on the meter. No serial command for this is known.</p>
+  </section>
 
   <section aria-labelledby="recording-heading">
     <h2 id="recording-heading">Offline recording</h2>
     <div class="row">
-      <label>Sample period <input type="number" id="sample-period" min="1" max="3600" step="1" value="10"> s</label>
+      <label>Sample period <input type="number" id="sample-period" min="1" max="3600" step="1" value="10" data-stepper="sample period"> s</label>
       <button id="download-recording" disabled>Download recording</button>
       <button id="save-recording-csv" disabled>Save CSV</button>
       <button id="save-recording-bin" disabled>Save raw .bin</button>
@@ -203,6 +210,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <script src="js/version.js"></script>
 <script src="js/tc66.js"></script>
 <script src="js/chart.js"></script>
+<script src="js/stepper.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa.js"></script>

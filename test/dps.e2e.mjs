@@ -217,7 +217,7 @@ try {
 
   check('nav links to the power supply page', await evaluate(`document.querySelector('.page-nav [aria-current]').textContent`) === 'Power supply');
 
-  await evaluate(`document.getElementById('poll-interval').value = '250'`);
+  await click('input[name="poll-interval"][value="250"]');
   await evaluate(`document.getElementById('log-frames').checked = true`);
   await click('#connect');
   await sleep(1500);
@@ -238,20 +238,42 @@ try {
   check('input voltage is shown', (await textOf('value-input-voltage')) === '24.00');
   check('the log shows the frames as hex', /→ 01 03 00 00 00 0d 84 0f/.test(await textOf('log')));
 
-  // Set 12 V and 0.5 A with one write multiple request, then switch the output on.
-  await evaluate(`document.getElementById('set-voltage').value = '12'; document.getElementById('set-current').value = '0.5'`);
-  await click('#apply-set');
-  await sleep(400);
+  // Type 12 V and 0.5 A. A change event (Enter or blur) sends each value with a write single request.
+  const typeValue = (id, value) => evaluate(`{ const input = document.getElementById('${id}'); input.focus(); input.value = '${value}';
+    input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); input.blur(); }`);
+  await typeValue('set-voltage', '12');
+  await typeValue('set-current', '0.5');
+  await sleep(500);
   const framesAfterSet = await evaluate('window.__dps.frames');
-  check('Set U and I sends one write multiple frame', framesAfterSet.includes('01 10 00 00 00 02 04 04 b0 01 f4 f3 6f'),
-    framesAfterSet.filter((frame) => frame.startsWith('01 10')).join(' | '));
+  check('typed values are sent with write single frames',
+    framesAfterSet.includes('01 06 00 00 04 b0 8a be') && framesAfterSet.includes('01 06 00 01 01 f4 d8 1d'),
+    framesAfterSet.filter((frame) => frame.startsWith('01 06')).join(' | '));
   let state = await registers();
   check('the supply gets U-SET 12.00 V and I-SET 0.500 A', state[0] === 1200 && state[1] === 500, `${state[0]} ${state[1]}`);
+  check('the setpoint status confirms the value', (await textOf('set-voltage-status')) === '✓ Set to 12.00 V', await textOf('set-voltage-status'));
 
-  await click('#output-toggle');
+  // The up arrow steps by the selected step (0.1 V). The page sends the value after a short pause.
+  await click('[data-setpoint="voltage"] .step-button[data-step="1"]');
+  await click('[data-setpoint="voltage"] .step-button[data-step="1"]');
+  check('the arrow changes the input at once', await evaluate(`document.getElementById('set-voltage').value`) === '12.20');
+  await sleep(900);
+  check('two arrow clicks send one value', (await registers())[0] === 1220 && !(await evaluate('window.__dps.frames')).includes('01 06 00 00 04 ba 0a b9'),
+    String((await registers())[0]));
+  // The keyboard: ArrowDown with the 1 V step.
+  await click('input[name="voltage-step"][value="1"]');
+  await evaluate(`{ const input = document.getElementById('set-voltage'); input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); }`);
+  await sleep(900);
+  // 12.20 V is between two 1 V steps. ArrowDown goes to the step below: 12.00 V.
+  check('ArrowDown goes to the next step of the selected size', (await registers())[0] === 1200, String((await registers())[0]));
+  await evaluate(`document.getElementById('set-voltage').blur()`);
+  await typeValue('set-voltage', '12');
+  await sleep(400);
+
+  await click('#output-switch');
   await sleep(800);
   state = await registers();
-  check('output toggle switches the output on', state[9] === 1);
+  check('output switch switches the output on', state[9] === 1 && await evaluate(`document.getElementById('output-switch').checked`));
   check('badges show output on and CC mode', (await textOf('badge-output')) === 'Output ON' && (await textOf('badge-mode')) === 'CC',
     `${await textOf('badge-output')} ${await textOf('badge-mode')}`);
   check('live values follow the CC limit', (await textOf('value-current')) === '0.500' && (await textOf('value-voltage')) === '5.00' && (await textOf('value-power')) === '2.50',
@@ -268,12 +290,13 @@ try {
   check('protection badge shows OCP', (await textOf('badge-protection')) === 'OCP tripped', await textOf('badge-protection'));
   await evaluate('window.__dps.registers[7] = 0');
 
-  await click('#lock-toggle');
+  await click('#lock-switch');
   await sleep(600);
-  check('lock button locks the keys', (await registers())[6] === 1 && (await textOf('lock-toggle')) === 'Unlock keys');
-  await evaluate(`const select = document.getElementById('brightness'); select.value = '2'; select.dispatchEvent(new Event('change'))`);
+  check('lock switch locks the keys', (await registers())[6] === 1 && (await textOf('badge-lock')) === 'Keys locked');
+  await evaluate(`{ const slider = document.getElementById('brightness'); slider.value = '2';
+    slider.dispatchEvent(new Event('input', { bubbles: true })); slider.dispatchEvent(new Event('change', { bubbles: true })); }`);
   await sleep(400);
-  check('brightness select writes register 0x0A', (await registers())[0x0a] === 2);
+  check('brightness slider writes register 0x0A', (await registers())[0x0a] === 2 && (await textOf('brightness-value')) === '2');
 
   await click('#read-presets');
   await sleep(2500);
@@ -288,16 +311,27 @@ try {
   check('recall loads the group into the settings', (await textOf('value-voltage-set')) === '3.00' && (await textOf('value-current-set')) === '0.300');
   check('recall copies the values into the form', await evaluate(`document.getElementById('set-voltage').value`) === '3.00');
 
-  await evaluate(`document.getElementById('set-voltage').value = '31'`);
-  await click('#apply-set');
+  await typeValue('set-voltage', '31');
   await sleep(300);
-  // The form validation (max = 30) stops the submit. DPSPort has its own range check, see test/dps.test.js.
-  check('a voltage over the range is not sent',
-    await evaluate(`document.getElementById('set-voltage').validity.rangeOverflow`) && (await registers())[0] === 300);
+  check('a voltage over the range is not sent', (await registers())[0] === 300 &&
+    await evaluate(`document.getElementById('set-voltage').getAttribute('aria-invalid')`) === 'true' &&
+    await evaluate(`getComputedStyle(document.getElementById('set-voltage-error')).display`) === 'block');
+  await evaluate(`document.getElementById('set-voltage').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+  check('Escape shows the supply value again', await evaluate(`document.getElementById('set-voltage').value`) === '3.00');
 
-  await click('#output-toggle');
+  // Save the current U and I (3.00 V, 0.300 A after the recall) into M7. The other fields of M7 stay.
+  await evaluate('window.confirm = () => true');
+  await click('[data-save="7"]');
+  await sleep(800);
+  state = await registers();
+  check('Save U/I writes U and I into M7', (await evaluate('window.__dps.frames')).includes('01 10 00 c0 00 02 04 01 2c 01 2c 3f 87') &&
+    state[0xc0] === 300 && state[0xc1] === 300 && state[0xc2] === 900);
+  check('Save U/I shows the new values of M7',
+    await evaluate(`Array.from(document.querySelectorAll('#preset-7 td')).slice(0, 2).map((cell) => cell.textContent).join(' ')`) === '3.00 0.300');
+
+  await click('#output-switch');
   await sleep(600);
-  check('output toggle switches the output off', (await registers())[9] === 0 && (await textOf('badge-output')) === 'Output OFF');
+  check('output switch switches the output off', (await registers())[9] === 0 && (await textOf('badge-output')) === 'Output OFF');
 
   await click('#save-live');
   await sleep(800);

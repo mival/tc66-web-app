@@ -18,6 +18,7 @@ const APP_SHELL = [
   'css/style.css',
   'js/tc66.js',
   'js/chart.js',
+  'js/stepper.js',
   'js/app.js',
   'js/db.js',
   'js/battery.js',
