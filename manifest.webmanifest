@@ -1,7 +1,7 @@
 {
   "name": "TC66C Meter",
   "short_name": "TC66C",
-  "description": "Read the RDTech TC66C USB-C meter and run power bank capacity tests.",
+  "description": "Read the RDTech TC66C USB-C meter, run power bank capacity tests and control a DPS power supply.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

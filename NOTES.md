@@ -98,3 +98,84 @@ Local HTML page using Web Serial that provides:
 - buttons: next page, previous page, rotate
 - download of the offline recording (`gtrec`) to CSV with a configurable sample period (default 10 s)
 - per-device info (model, firmware, serial, run count, group counters)
+
+## DPS3005 power supply (added 2026-11-24)
+
+The user's unit advertises over classic Bluetooth (SPP/RFCOMM, not BLE) as `DPS3005_001`, address `00:BA:57:57:CC:9B`.
+It was not paired with the Windows laptop at the time of writing. WSL cannot pair it.
+
+### Connection
+- Modbus RTU, slave address 1, 9600 8N1 by default. The supply setup menu can change the address and the baud rate.
+  DPS5005_pyGUI reports that 2400 and 19200 baud may not work. 4800 and 9600 work.
+- Windows: a paired SPP device gets an incoming and an outgoing Bluetooth COM port. Web Serial opens the outgoing one.
+- Newer Chrome can open the RFCOMM service directly with
+  `requestPort({ allowedBluetoothServiceClassIds: ['00001101-0000-1000-8000-00805f9b34fb'] })`.
+  The page uses this option. "Bluetooth only" adds a `bluetoothServiceClassId` filter.
+  An older browser rejects that filter with a `TypeError`. Then the page shows all ports.
+- The Bluetooth module accepts one connection. Close the phone app first.
+- The page does not call `setSignals()` (DTR/RTS). Modbus RTU does not need them, and a Bluetooth port may not support them.
+
+### Protocol
+- Functions: 0x03 read holding registers, 0x06 write single register, 0x10 write multiple registers.
+- CRC-16/MODBUS, low byte first. The same CRC protects the TC66 `getva` packets.
+- An exception response has the function code with bit 0x80 set and one exception code byte.
+- `js/dps.js` sends one request at a time, with a 1 s timeout and a 20 ms gap after each response.
+  Reads and writes get a second attempt after a timeout. All writes set absolute values, so a repeated write is safe.
+  The response search skips noise bytes before the frame.
+
+### Register map (DPS3005)
+
+| Address | Name | Scale | Notes |
+|---|---|---|---|
+| 0x00 | U-SET | V/100 | R/W |
+| 0x01 | I-SET | A/1000 | R/W |
+| 0x02 | UOUT | V/100 | R |
+| 0x03 | IOUT | A/1000 | R |
+| 0x04 | POWER | W/100 | R |
+| 0x05 | UIN | V/100 | R |
+| 0x06 | LOCK | 0/1 | R/W, key lock |
+| 0x07 | PROTECT | | 0 OK, 1 OVP, 2 OCP, 3 OPP |
+| 0x08 | CV/CC | | 0 CV, 1 CC |
+| 0x09 | ONOFF | 0/1 | R/W, output |
+| 0x0A | B_LED | 0-5 | R/W, brightness |
+| 0x0B | MODEL | | 3005 |
+| 0x0C | VERSION | /10 | e.g. 16 = 1.6 |
+| 0x23 | EXTRACT_M | 0-9 | W, recall memory group |
+| 0x50 + 0x10·n | M0-M9 | | 8 registers per group, see below |
+
+Memory group fields: U-SET (V/100), I-SET (A/1000), S-OVP (V/100), S-OCP (A/1000), S-OPP (W/10), B-LED, M-PRE, S-INI
+(output state at power on). M0 is the group that the supply loads at power on.
+
+Sources: [DPS5005_pyGUI](https://github.com/lambcutlet/DPS5005_pyGUI) (`dps_modbus.py`, `dps5005_limits.ini`) for the
+DPS5005, which has the same registers and scaling as the DPS3005.
+
+**Not confirmed yet (check on the real supply):**
+- The PROTECT and CV/CC values. They come from the RDTech protocol document, which was not found online in this session.
+- Recall with register 0x23. DPS5005_pyGUI limits this register to 0-1. The page writes 0-9.
+- The 0x10 stride of the memory groups. DPS5005_pyGUI reads only M0 at 0x50-0x57.
+- The scaling of DPS5015, DPS5020 and DPS8005 in `MODELS` (`js/dps.js`). They are estimates.
+
+### Hardware test checklist
+1. Pair `DPS3005_001` in Windows (PIN usually 1234). Close the phone app.
+2. Open `dps.html` in Chrome or Edge on Windows. Turn on "Show the Modbus frames" in the log.
+3. Connect with the outgoing Bluetooth COM port. Then try "Bluetooth (RFCOMM) only".
+4. Compare U, I, P, UIN, CV/CC and the firmware version with the supply display.
+5. Set 5 V / 0.1 A with no load, switch the output on and off, lock and unlock the keys, change the brightness.
+6. Read M0-M9 and compare with the supply. Recall M1 and check U-SET and I-SET.
+7. Short the output through a resistor with a low I-SET to see CC. Set a low OCP to see the protection state.
+8. Save the frame log as a fixture for `test/fixtures/dps-frames.json`.
+
+## Follow-up ideas (not implemented)
+
+### Combined TC66 + DPS automated test
+Use the DPS3005 as a programmable source and the TC66C as an independent meter on the same circuit.
+Both run in one page with two serial ports, one queue each.
+- **Meter calibration check:** step the DPS output (for example 5, 9, 12, 20 V into a fixed load).
+  Compare the TC66 voltage and current with the DPS values at each step. Report the offset and the gain error.
+- **CC charge or load test:** use the DPS in CC mode to charge a cell or a power bank at a fixed current.
+  The TC66 counts mAh and Wh. Stop at a voltage limit or when the current falls below a threshold.
+- **Cable resistance:** source a fixed current through a USB cable. The DPS reads the voltage at its output,
+  the TC66 at the far end. The difference divided by the current is the cable resistance.
+- Points to solve: time alignment of the two sample streams, safe limits (OVP and OCP set before the output goes on),
+  and an emergency stop that switches the DPS output off when a check fails or a port disconnects.
+- The battery test page (`js/db.js`) can store these runs. `DPS.Poller` and `TC66Port` can share the timing code.

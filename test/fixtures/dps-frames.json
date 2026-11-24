@@ -1,0 +1,15 @@
+{
+  "_comment": "Modbus RTU frames for a DPS3005 at slave address 1. A table-driven CRC script made the CRCs, not js/dps.js. The canonical_* frames are the usual examples from Modbus documents.",
+  "canonical_read_request": "01 03 00 00 00 0a c5 cd",
+  "canonical_write_request": "01 06 00 01 00 03 98 0b",
+  "status_request": "01 03 00 00 00 0d 84 0f",
+  "status_cv_on": "01 03 1a 01 f4 03 e8 01 f2 02 00 00 ff 04 ba 00 00 00 00 00 00 00 01 00 04 0b bd 00 10 68 42",
+  "status_cc_ocp_locked": "01 03 1a 04 b0 01 f4 04 50 01 f4 02 28 09 60 00 01 00 02 00 01 00 01 00 05 0b bd 00 10 76 f7",
+  "preset_m1_request": "01 03 00 60 00 08 44 12",
+  "preset_m1": "01 03 10 04 b0 07 d0 05 14 08 34 01 2c 00 04 00 00 00 00 18 a1",
+  "write_onoff_request": "01 06 00 09 00 01 98 08",
+  "write_uset_iset_request": "01 10 00 00 00 02 04 04 b0 05 dc f1 b1",
+  "write_uset_iset_response": "01 10 00 00 00 02 41 c8",
+  "recall_m3_request": "01 06 00 23 00 03 38 01",
+  "exception_illegal_address": "01 83 02 c0 f1"
+}
