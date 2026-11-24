@@ -1,6 +1,6 @@
 {
-  "name": "TC66C Meter",
-  "short_name": "TC66C",
+  "name": "TC66C and DPS Tools",
+  "short_name": "TC66/DPS",
   "description": "Read the RDTech TC66C USB-C meter, run power bank capacity tests and control a DPS power supply.",
   "start_url": ".",
   "scope": ".",
@@ -9,5 +9,10 @@
   "theme_color": "#1c1f23",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "TC66C meter", "short_name": "Meter", "url": "index.html", "icons": [{ "src": "icon.svg", "sizes": "any" }] },
+    { "name": "Battery test", "short_name": "Battery", "url": "battery.html", "icons": [{ "src": "icon.svg", "sizes": "any" }] },
+    { "name": "DPS power supply", "short_name": "Power supply", "url": "dps.html", "icons": [{ "src": "icon.svg", "sizes": "any" }] }
   ]
 }

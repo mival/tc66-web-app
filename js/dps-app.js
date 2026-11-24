@@ -3,6 +3,7 @@
   'use strict';
 
   const element = (id) => document.getElementById(id);
+  const TC66_USB_VENDOR_ID = 0x28e9;
   const MAX_SAMPLE_COUNT = 200000;
   const MAX_FAILED_POLLS = 3;
   const MAX_LOG_LINES = 300;
@@ -11,10 +12,10 @@
   const REPEAT_INTERVAL_MILLISECONDS = 90;
 
   const LIVE_CHARTS = [
-    { canvasId: 'chart-voltage', field: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 2, label: 'Output voltage' },
-    { canvasId: 'chart-current', field: 'current', colorToken: '--color-current', unit: 'A', decimals: 3, label: 'Output current' },
-    { canvasId: 'chart-power', field: 'power', colorToken: '--color-power', unit: 'W', decimals: 2, label: 'Power' },
-    { canvasId: 'chart-input-voltage', field: 'inputVoltage', colorToken: '--color-input', unit: 'V', decimals: 2, label: 'Input voltage' },
+    { containerId: 'chart-voltage', field: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 2, label: 'Output voltage' },
+    { containerId: 'chart-current', field: 'current', colorToken: '--color-current', unit: 'A', decimals: 3, label: 'Output current' },
+    { containerId: 'chart-power', field: 'power', colorToken: '--color-power', unit: 'W', decimals: 2, label: 'Power' },
+    { containerId: 'chart-input-voltage', field: 'inputVoltage', colorToken: '--color-input', unit: 'V', decimals: 2, label: 'Input voltage' },
   ];
 
   // The two setpoints. Each one has an input, arrow buttons, a step size and a status line.
@@ -50,22 +51,13 @@
 
   // ---------- Log and status ----------
 
-  function addLogLine(message) {
-    const logElement = element('log');
-    const line = `${new Date().toLocaleTimeString()}  ${message}\n`;
-    logElement.textContent = (logElement.textContent + line).split('\n').slice(-MAX_LOG_LINES).join('\n');
-    logElement.scrollTop = logElement.scrollHeight;
-  }
-
-  // state: '' (neutral), 'on' or 'error'.
-  function setStatus(text, state = '') {
-    element('status-text').textContent = text;
-    element('status-dot').className = 'dot' + (state ? ' ' + state : '');
-  }
+  const addLogLine = (message) => App.addLogLine(message, { maxLines: MAX_LOG_LINES });
+  const setStatus = App.setStatus;
+  const fileTimestamp = App.fileTimestamp;
+  const saveFile = App.saveFile;
 
   function setConnectedUi(connected) {
-    element('connect').disabled = connected;
-    element('disconnect').disabled = !connected;
+    App.showConnected(connected);
     element('pause').disabled = !connected;
     element('output-switch').disabled = !connected;
     element('lock-switch').disabled = !connected;
@@ -84,32 +76,27 @@
     ['port-kind', 'baud-rate', 'slave-address'].forEach((id) => { element(id).disabled = connected; });
     document.querySelectorAll('button[data-recall], button[data-edit]').forEach((button) => { button.disabled = !connected; });
     if (!connected && element('preset-dialog').open) element('preset-dialog').close();
+    // The connection settings are open while the page is not connected, because you need them before Connect.
+    element('connection-details').open = !connected;
     if (!connected) {
       fillSetInputs = true;
       element('output-state').textContent = '–';
+      updateChoosePort();
     }
   }
 
-  function fileTimestamp() {
-    const now = new Date();
-    const pad = (value) => String(value).padStart(2, '0');
-    const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    return `${date}-${time}`;
-  }
-
-  function saveFile(fileName, content, mimeType) {
-    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
-
   // ---------- Connection ----------
+
+  const PORT_STORAGE_KEY = 'dps-last-port';
+  // The supply is any serial port that is not the TC66C meter (USB vendor 0x28e9).
+  const isSupplyPort = (info) => info.usbVendorId !== TC66_USB_VENDOR_ID;
+  let reconnector = null;
+
+  // "Choose port…" shows when Connect would use a known port. It lets the user pick another one.
+  async function updateChoosePort() {
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isSupplyPort);
+    element('choose-port').hidden = !!connection || !known;
+  }
 
   // The port chooser shows wired ports and Bluetooth serial ports.
   // allowedBluetoothServiceClassIds lets newer Chrome open an RFCOMM service directly.
@@ -128,14 +115,24 @@
   }
 
   function describePort(serialPort) {
-    const info = typeof serialPort.getInfo === 'function' ? serialPort.getInfo() : {};
+    const info = App.portInfo(serialPort);
     if (info.bluetoothServiceClassId) return 'Bluetooth RFCOMM';
     if (info.usbVendorId !== undefined) return `USB ${info.usbVendorId.toString(16).padStart(4, '0')}:${(info.usbProductId || 0).toString(16).padStart(4, '0')}`;
     return 'serial port';
   }
 
+  // Connect uses the port of the supply that the user allowed before. Without one, it opens the port chooser.
   async function connect() {
     if (connection) return;
+    stopReconnect();
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isSupplyPort);
+    if (known) await connectTo(known);
+    else await choosePort();
+  }
+
+  async function choosePort() {
+    if (connection) return;
+    stopReconnect();
     let serialPort;
     try {
       serialPort = await requestSerialPort();
@@ -144,22 +141,33 @@
       if (error.name !== 'NotFoundError') addLogLine(`Port selection failed: ${error.message}`);
       return;
     }
+    await connectTo(serialPort);
+  }
+
+  // Open the port and read the supply. Return true when the supply answers.
+  // quiet: true is for the reconnect attempts. They show no message for each failure.
+  async function connectTo(serialPort, { quiet = false } = {}) {
+    if (connection) return true;
     const slaveAddress = Math.round(Number(element('slave-address').value)) || DPS.DEFAULT_SLAVE_ADDRESS;
     const baudRate = Number(element('baud-rate').value) || DPS.DEFAULT_BAUD_RATE;
     const newConnection = new DPS.DPSPort(serialPort, { slaveAddress, baudRate });
-    setStatus('Opening port…');
+    if (!quiet) setStatus('Opening port…');
     try {
       await newConnection.open();
     } catch (error) {
+      if (quiet) return false;
       setStatus('Cannot open the port', 'error');
-      addLogLine(`Open failed: ${error.message}. Close other programs and the phone app. For Bluetooth, make sure that the supply is on and paired.`);
-      return;
+      const message = `Cannot open the port: ${error.message}. Close other programs and the phone app. For Bluetooth, make sure that the supply is on and paired.`;
+      addLogLine(message);
+      App.toast(message, { kind: 'error' });
+      return false;
     }
     newConnection.onclose = (error) => onConnectionLost(newConnection, error);
     newConnection.ontraffic = (direction, bytes) => {
       if (element('log-frames').checked) addLogLine(`${direction === 'tx' ? '→' : '←'} ${DPS.toHex(bytes)}`);
     };
     connection = newConnection;
+    App.rememberPort(PORT_STORAGE_KEY, serialPort);
     setConnectedUi(true);
     addLogLine(`Port open (${describePort(serialPort)}, ${baudRate} 8N1, slave ${slaveAddress}).`);
     setStatus('Waiting for the supply…');
@@ -173,13 +181,18 @@
       addSample(status);
     } catch (error) {
       addLogLine(`The supply does not respond: ${error.message}`);
-      addLogLine('Check the baud rate and the slave address. For Bluetooth, the supply must be on and no other device can be connected.');
       await disconnect({ unlock: false });
       setStatus('Supply does not respond', 'error');
-      return;
+      if (!quiet) {
+        const hint = 'Check the baud rate and the slave address. For Bluetooth, the supply must be on and no other device can be connected.';
+        addLogLine(hint);
+        App.toast(`The supply does not respond. ${hint}`, { kind: 'error' });
+      }
+      return false;
     }
     if (element('autolock-switch').checked) await lockOnConnect(lastStatus);
     startPolling();
+    return true;
   }
 
   // Lock the keys if they are free. Remember that the page locked them.
@@ -190,8 +203,13 @@
 
   // unlock: false skips the unlock, for example when the supply does not respond.
   async function disconnect({ unlock = true } = {}) {
+    stopReconnect();
     const oldConnection = connection;
-    if (!oldConnection) return;
+    if (!oldConnection) {
+      setConnectedUi(false);
+      setStatus('Not connected');
+      return;
+    }
     connection = null;
     stopPolling();
     if (unlock && lockedByPage) {
@@ -217,6 +235,39 @@
     setConnectedUi(false);
     setStatus('Connection lost', 'error');
     addLogLine(`Connection lost: ${error ? error.message : 'unknown reason'}`);
+    startReconnect(lostConnection.serialPort);
+  }
+
+  // Try to connect to the same port again, for about one minute.
+  function startReconnect(serialPort) {
+    stopReconnect();
+    App.toast('The connection to the supply is lost. The page tries to connect again.', { kind: 'warning' });
+    reconnector = new App.Reconnector({
+      port: serialPort,
+      attempts: 12,
+      delay: 5000,
+      tryConnect: async (port, count) => {
+        setStatus(`Reconnecting (${count}/12)…`, 'error');
+        const connected = await connectTo(port, { quiet: true });
+        if (connected) {
+          addLogLine('Connected again.');
+          App.toast('Connected to the supply again.', { kind: 'success' });
+        }
+        return connected;
+      },
+      onGiveUp: () => {
+        reconnector = null;
+        setStatus('Connection lost', 'error');
+        addLogLine('The page cannot connect again. Check the supply, then click Connect.');
+        App.toast('The page cannot connect to the supply again. Check the supply, then click Connect.', { kind: 'error', milliseconds: 0 });
+      },
+    });
+    reconnector.start();
+  }
+
+  function stopReconnect() {
+    if (reconnector) reconnector.stop();
+    reconnector = null;
   }
 
   // ---------- Live polling ----------
@@ -241,9 +292,11 @@
       },
       onGiveUp: async () => {
         if (connection !== activeConnection) return;
-        addLogLine(`${MAX_FAILED_POLLS} reads failed. Polling stops. Check the supply, then connect again.`);
+        addLogLine(`${MAX_FAILED_POLLS} reads failed. The page disconnects and tries to connect again.`);
+        const port = activeConnection.serialPort;
         await disconnect({ unlock: false });
         setStatus('Supply does not respond', 'error');
+        startReconnect(port);
       },
     });
     poller.start();
@@ -282,11 +335,132 @@
     element('device-firmware').textContent = status.version;
     element('device-range').textContent = `0–${scaling.maxVoltage} V · 0–${scaling.maxCurrent} A`;
     for (const setpoint of Object.values(SETPOINTS)) {
-      const input = element(setpoint.inputId);
-      input.max = String(scaling[setpoint.maxKey]);
-      input.step = String(10 ** -scaling[setpoint.decimalsKey]);
-      input.closest('.setpoint').querySelector('[data-max]').textContent = String(scaling[setpoint.maxKey]);
+      element(setpoint.inputId).step = String(10 ** -scaling[setpoint.decimalsKey]);
     }
+    element('limit-voltage').max = String(scaling.maxVoltage);
+    element('limit-current').max = String(scaling.maxCurrent);
+    applyLimits();
+  }
+
+  // ---------- Safety limits ----------
+
+  const LIMITS_STORAGE_KEY = 'dps-limits';
+  const LIMIT_INPUTS = { voltageSet: 'limit-voltage', currentSet: 'limit-current' };
+
+  // The user limit of a setpoint field, or Infinity when the field is empty.
+  function userLimit(field) {
+    const input = element(LIMIT_INPUTS[field]);
+    return input.value === '' || !input.validity.valid ? Infinity : Number(input.value);
+  }
+
+  // The highest value that the page sends: the model range or the user limit, whichever is lower.
+  function highestValue(setpoint) {
+    return Math.min(currentScaling()[setpoint.maxKey], userLimit(setpoint.field));
+  }
+
+  // Put the limits on the setpoint inputs and the memory group dialog, and show them in the summary.
+  function applyLimits() {
+    for (const setpoint of Object.values(SETPOINTS)) {
+      const highest = highestValue(setpoint);
+      element(setpoint.inputId).max = String(highest);
+      element(setpoint.inputId).closest('.setpoint').querySelector('[data-max]').textContent = String(highest);
+    }
+    const parts = [];
+    if (userLimit('voltageSet') !== Infinity) parts.push(`${userLimit('voltageSet')} V`);
+    if (userLimit('currentSet') !== Infinity) parts.push(`${userLimit('currentSet')} A`);
+    element('safety-limits-summary').textContent = parts.length ? `at most ${parts.join(' · ')}` : 'none';
+    element('safety-limits').classList.toggle('active', parts.length > 0);
+  }
+
+  function initLimits() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LIMITS_STORAGE_KEY) || '{}');
+      if (saved.voltage != null) element('limit-voltage').value = saved.voltage;
+      if (saved.current != null) element('limit-current').value = saved.current;
+    } catch {
+      // Storage is blocked or the value is not valid. Start with no limits.
+    }
+    for (const id of Object.values(LIMIT_INPUTS)) {
+      element(id).addEventListener('change', () => {
+        try {
+          localStorage.setItem(LIMITS_STORAGE_KEY, JSON.stringify({
+            voltage: element('limit-voltage').value === '' ? null : element('limit-voltage').value,
+            current: element('limit-current').value === '' ? null : element('limit-current').value,
+          }));
+        } catch {
+          // The limits apply to this visit only.
+        }
+        applyLimits();
+      });
+    }
+    applyLimits();
+  }
+
+  // ---------- Warnings ----------
+
+  let lastProtection = 'OK';
+
+  // Show a banner while a protection is tripped. Show a toast once, when it trips.
+  function showProtection(status) {
+    const tripped = status.protection !== 'OK';
+    element('protection-alert').hidden = !tripped;
+    if (tripped) {
+      const names = { OVP: 'Over-voltage protection (OVP)', OCP: 'Over-current protection (OCP)', OPP: 'Over-power protection (OPP)' };
+      element('protection-alert-title').textContent = `${names[status.protection] || status.protection} tripped.`;
+      element('protection-alert-text').textContent =
+        ' The supply switched the output off. Remove the cause, then switch the output on again. You can change the limit in a memory group or on the supply.';
+      if (lastProtection === 'OK') App.toast(`${status.protection} tripped. The output is off.`, { kind: 'error', milliseconds: 10000 });
+    }
+    lastProtection = status.protection;
+  }
+
+  // The supply is a step-down converter. Its output is at most about the input voltage / 1.1.
+  function showInputWarning(status) {
+    const highestOutput = status.inputVoltage / 1.1;
+    const tooHigh = status.inputVoltage > 0 && status.voltageSet > highestOutput + 0.05;
+    const warning = element('input-warning');
+    warning.hidden = !tooHigh;
+    if (tooHigh) {
+      warning.textContent = `⚠ U-SET ${status.voltageSet.toFixed(2)} V is too high for the input of ${status.inputVoltage.toFixed(2)} V. ` +
+        `The output can reach about ${highestOutput.toFixed(1)} V. Use an adapter with at least ${(status.voltageSet * 1.1).toFixed(1)} V.`;
+    }
+  }
+
+  // ---------- Charge and energy counters ----------
+
+  // The supply does not count charge and energy, so the page adds them up (trapezoid rule).
+  // A gap of more than MAX_GAP_MS adds nothing, because the current during the gap is not known.
+  const MAX_GAP_MS = 30000;
+  const counters = { mAh: 0, wh: 0, onMilliseconds: 0, previous: null };
+
+  function addToCounters(time, status) {
+    const previous = counters.previous;
+    if (previous) {
+      const dt = time - previous.time;
+      if (dt > 0 && dt <= MAX_GAP_MS) {
+        const hours = dt / 3600000;
+        counters.mAh += ((status.current + previous.current) / 2) * hours * 1000;
+        counters.wh += ((status.power + previous.power) / 2) * hours;
+        if (status.outputOn && previous.outputOn) counters.onMilliseconds += dt;
+      }
+    }
+    counters.previous = { time, current: status.current, power: status.power, outputOn: status.outputOn };
+    showCounters();
+  }
+
+  function showCounters() {
+    element('value-charge').textContent = counters.mAh.toFixed(1);
+    element('value-energy').textContent = counters.wh.toFixed(3);
+    element('value-on-time').textContent = App.formatDuration(counters.onMilliseconds / 1000);
+  }
+
+  function resetCounters() {
+    counters.mAh = 0;
+    counters.wh = 0;
+    counters.onMilliseconds = 0;
+    counters.previous = null;
+    showCounters();
+    addLogLine('Counters reset.');
   }
 
   function setBadge(id, text, state) {
@@ -297,8 +471,14 @@
 
   function addSample(status) {
     lastStatus = status;
-    samples.push({ time: Date.now(), ...status });
+    const time = Date.now();
+    addToCounters(time, status);
+    showProtection(status);
+    showInputWarning(status);
+    const sample = { time, ...status, mAh: counters.mAh, wh: counters.wh };
+    samples.push(sample);
     if (samples.length > MAX_SAMPLE_COUNT) samples.splice(0, samples.length - MAX_SAMPLE_COUNT);
+    appendLiveSeries(sample);
     const scaling = currentScaling();
     const { voltageDecimals, currentDecimals, powerDecimals } = scaling;
 
@@ -346,6 +526,7 @@
 
   function clearSamples() {
     samples = [];
+    clearLiveSeries();
     element('value-sample-count').textContent = '0';
     element('save-live').disabled = true;
     scheduleDraw();
@@ -353,34 +534,64 @@
 
   // ---------- Charts ----------
 
+  // The live chart data: seconds since the first sample, and one value array for each chart.
+  // addSample appends to them, so a poll does not copy all samples.
+  const liveSeries = { firstTime: null, times: [] };
+  LIVE_CHARTS.forEach((chart) => { liveSeries[chart.field] = []; });
+  let liveCharts = null;
+
+  function appendLiveSeries(sample) {
+    if (liveSeries.firstTime === null) liveSeries.firstTime = sample.time;
+    liveSeries.times.push((sample.time - liveSeries.firstTime) / 1000);
+    for (const chart of LIVE_CHARTS) liveSeries[chart.field].push(sample[chart.field]);
+    if (liveSeries.times.length > MAX_SAMPLE_COUNT) {
+      const extra = liveSeries.times.length - MAX_SAMPLE_COUNT;
+      liveSeries.times.splice(0, extra);
+      for (const chart of LIVE_CHARTS) liveSeries[chart.field].splice(0, extra);
+    }
+  }
+
+  function clearLiveSeries() {
+    liveSeries.firstTime = null;
+    liveSeries.times = [];
+    for (const chart of LIVE_CHARTS) liveSeries[chart.field] = [];
+  }
+
+  // Draw on the next animation frame. A hidden tab gets no frames, so it does not draw until it is visible.
   function scheduleDraw() {
     if (drawScheduled) return;
     drawScheduled = true;
-    requestAnimationFrame(() => {
+    const draw = () => {
+      if (!drawScheduled) return;
       drawScheduled = false;
       drawLiveCharts();
-    });
+    };
+    requestAnimationFrame(draw);
+  }
+
+  // The charts read the theme colors when they start. Rebuild them after a theme change.
+  function rebuildCharts() {
+    if (liveCharts) Object.values(liveCharts).forEach((chart) => chart.destroy());
+    liveCharts = null;
+    scheduleDraw();
   }
 
   function drawLiveCharts() {
-    const startTime = samples.length ? samples[0].time : 0;
-    const times = samples.map((sample) => (sample.time - startTime) / 1000);
+    if (!liveCharts) {
+      const sync = UChart.sync('dps-live');
+      liveCharts = {};
+      for (const chart of LIVE_CHARTS) {
+        liveCharts[chart.field] = UChart.create(element(chart.containerId), {
+          label: chart.label, unit: chart.unit, colorToken: chart.colorToken, decimals: chart.decimals, height: 130, sync,
+        });
+      }
+    }
+    const times = liveSeries.times;
     const lastTime = times.length ? times[times.length - 1] : 0;
     const windowSeconds = Number(Stepper.segmentedValue(element('chart-window')));
     const timeEnd = windowSeconds ? Math.max(lastTime, windowSeconds) : Math.max(lastTime, 10);
     const timeStart = windowSeconds ? timeEnd - windowSeconds : 0;
-    for (const chart of LIVE_CHARTS) {
-      Chart.drawStrip(element(chart.canvasId), {
-        times,
-        values: samples.map((sample) => sample[chart.field]),
-        timeStart,
-        timeEnd,
-        color: Chart.resolveColor(`var(${chart.colorToken})`),
-        unit: chart.unit,
-        decimals: chart.decimals,
-        label: chart.label,
-      });
-    }
+    for (const chart of LIVE_CHARTS) liveCharts[chart.field].setWindow(times, liveSeries[chart.field], timeStart, timeEnd);
   }
 
   // ---------- Commands ----------
@@ -394,6 +605,7 @@
       return true;
     } catch (error) {
       addLogLine(`${description} failed: ${error.message}`);
+      App.toast(`${description} failed: ${error.message}`, { kind: 'error' });
       return false;
     }
   }
@@ -425,7 +637,7 @@
     // Snap to the step grid first, so 5.03 + 0.1 gives 5.1, not 5.13.
     const snapped = stepCount > 0 ? Math.floor(current / step + 1e-9) * step : Math.ceil(current / step - 1e-9) * step;
     const base = Math.abs(snapped - current) > 1e-9 ? snapped : current;
-    const next = Math.min(scaling[setpoint.maxKey], Math.max(0, base + stepCount * step));
+    const next = Math.min(highestValue(setpoint), Math.max(0, base + stepCount * step));
     input.value = next.toFixed(decimals);
     markInvalid(input, false);
     scheduleSend(setpoint, SEND_DELAY_MILLISECONDS);
@@ -654,7 +866,9 @@
     for (const { id, field, decimals } of PRESET_FIELDS) {
       const input = element(id);
       const places = decimals(scaling);
-      input.max = String(limits[field]);
+      // U and I also respect the safety limits of the page.
+      const userMax = LIMIT_INPUTS[field] ? userLimit(field) : Infinity;
+      input.max = String(Math.min(limits[field], userMax));
       input.step = String(10 ** -places);
       input.value = preset[field].toFixed(places);
     }
@@ -739,7 +953,8 @@
     }
     buildPresetTable();
     element('connect').addEventListener('click', connect);
-    element('disconnect').addEventListener('click', disconnect);
+    element('disconnect').addEventListener('click', () => disconnect());
+    element('choose-port').addEventListener('click', choosePort);
     element('pause').addEventListener('click', togglePause);
     element('clear').addEventListener('click', clearSamples);
     element('save-live').addEventListener('click', () => {
@@ -759,14 +974,15 @@
     element('preset-use-current').addEventListener('click', useCurrentSetpoints);
     Stepper.enhance();
     initAutolock();
+    initLimits();
+    element('reset-counters').addEventListener('click', resetCounters);
     element('preset-body').addEventListener('click', (event) => {
       const recallButton = event.target.closest('button[data-recall]');
       if (recallButton) recallPreset(Number(recallButton.dataset.recall));
       const editButton = event.target.closest('button[data-edit]');
       if (editButton) openPresetEditor(Number(editButton.dataset.edit), editButton);
     });
-    new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
-    Theme.init(scheduleDraw); // Redraw the charts when the scheme changes.
+    Theme.init(rebuildCharts); // The charts take the colors of the new scheme.
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
     setConnectedUi(false);
     showBrightness();

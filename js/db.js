@@ -6,19 +6,28 @@
 
   // ---------- Capacity math (pure, testable in Node) ----------
 
+  // A longer time between two samples is a gap, for example a lost connection.
+  // The longest sample interval is 10 s, so 30 s cannot be a normal interval.
+  // The integration adds nothing for a gap, because the current during the gap is not known.
+  const MAX_GAP_MS = 30000;
+
   // Integrate a time series into charge (mAh) and energy (Wh).
   // samples: [{ t (ms), v, a, w }], sorted by time. Uses the trapezoid rule.
   // Returns totals and the per-sample cumulative values, for a graph.
   function integrateTimeSeries(samples) {
     let mAh = 0;
     let wh = 0;
+    let gapCount = 0;
     let minVoltage = Infinity, maxVoltage = -Infinity, maxCurrent = 0, maxPower = 0;
     const rows = [];
     for (let i = 0; i < samples.length; i++) {
       const s = samples[i];
       if (i > 0) {
-        const dtHours = (s.t - samples[i - 1].t) / 3600000; // ms to hours
-        if (dtHours > 0) {
+        const dtMs = s.t - samples[i - 1].t;
+        const dtHours = dtMs / 3600000; // ms to hours
+        if (dtMs > MAX_GAP_MS) {
+          gapCount++;
+        } else if (dtHours > 0) {
           mAh += ((s.a + samples[i - 1].a) / 2) * dtHours * 1000;
           wh += ((s.w + samples[i - 1].w) / 2) * dtHours;
         }
@@ -36,6 +45,7 @@
       durationS: count ? (samples[count - 1].t - samples[0].t) / 1000 : 0,
       mAh,
       wh,
+      gapCount,
       minVoltage: count ? minVoltage : 0,
       maxVoltage: count ? maxVoltage : 0,
       maxCurrent,
@@ -258,7 +268,7 @@
     }
   }
 
-  const api = { TC66DB, integrateTimeSeries, efficiency };
+  const api = { TC66DB, integrateTimeSeries, efficiency, MAX_GAP_MS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else globalScope.TC66DB_API = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -1,17 +1,13 @@
 // End-to-end test: runs index.html in headless Chrome with a mock Web Serial port.
 // The mock replays real meter bytes from test/fixtures.
 // Run: BROWSER_PATH=<chrome-headless-shell> node test/e2e.mjs
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createChecks, finish, makeOutputDirectory, projectDirectory, sleep, startBrowser } from './lib/browser.mjs';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectDirectory = path.join(testDirectory, '..');
-const browserPath = process.env.BROWSER_PATH;
-if (!browserPath) throw new Error('Set BROWSER_PATH to a Chrome binary.');
-const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'tc66-e2e-'));
+const outputDirectory = makeOutputDirectory('tc66-e2e-');
 const debugPort = 9339;
 
 const toBase64 = (file) => fs.readFileSync(file).toString('base64');
@@ -71,83 +67,21 @@ const mockSerialScript = `(() => {
     async close() { serialLog.push('close'); }
   }
   const port = new MockPort();
+  // Like a real browser, getPorts() returns the port only after the user allowed it in the chooser.
+  let allowed = false;
   Object.defineProperty(navigator, 'serial', { value: {
-    requestPort: async (options) => { serialLog.push('filter:' + JSON.stringify(options.filters)); return port; },
-    getPorts: async () => [port],
+    requestPort: async (options) => { serialLog.push('filter:' + JSON.stringify(options.filters)); allowed = true; return port; },
+    getPorts: async () => (allowed ? [port] : []),
     addEventListener() {},
+    removeEventListener() {},
   }});
   window.confirm = () => false;
 })();`;
 
-const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const chrome = spawn(browserPath, [
-  '--headless', `--remote-debugging-port=${debugPort}`, '--no-sandbox', `--user-data-dir=${outputDirectory}/profile`, 'about:blank',
-], { stdio: ['ignore', 'ignore', 'pipe'] });
-// Keep the Chrome log. The test shows it if Chrome does not start.
-let chromeLog = '';
-chrome.stderr.on('data', (data) => { chromeLog += data; });
-let chromeExitCode = null;
-chrome.on('exit', (code, signal) => { chromeExitCode = code ?? signal; });
-chrome.on('error', (error) => {
-  console.error(`Cannot start Chrome at "${browserPath}": ${error.message}`);
-  process.exit(1);
-});
-
-// Wait up to 15 s for the DevTools endpoint and a page target.
-let socket;
-for (let attempt = 0; attempt < 150 && !socket && chromeExitCode === null; attempt++) {
-  try {
-    const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-    const pageTarget = targets.find((target) => target.type === 'page');
-    if (pageTarget) socket = new WebSocket(pageTarget.webSocketDebuggerUrl);
-  } catch {
-    // The DevTools endpoint is not ready yet.
-  }
-  if (!socket) await sleep(100);
-}
-if (!socket) {
-  chrome.kill();
-  console.error(chromeLog.slice(-4000));
-  const reason = chromeExitCode === null ? 'in 15 s' : `(Chrome stopped with ${chromeExitCode})`;
-  throw new Error(`Chrome did not start ${reason}.`);
-}
-await new Promise((resolve) => socket.addEventListener('open', resolve));
-
-let messageId = 0;
-const pendingReplies = new Map();
-const pageErrors = [];
-socket.addEventListener('message', (event) => {
-  const message = JSON.parse(event.data);
-  if (message.id && pendingReplies.has(message.id)) {
-    pendingReplies.get(message.id)(message);
-    pendingReplies.delete(message.id);
-  }
-  if (message.method === 'Runtime.exceptionThrown') {
-    const details = message.params.exceptionDetails;
-    pageErrors.push(details.exception?.description || details.text);
-  }
-  if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
-    pageErrors.push(message.params.args.map((argument) => argument.value ?? argument.description).join(' '));
-  }
-});
-const sendCommand = (method, params = {}) => new Promise((resolve) => {
-  const id = ++messageId;
-  pendingReplies.set(id, resolve);
-  socket.send(JSON.stringify({ id, method, params }));
-});
-const evaluate = async (expression) => {
-  const reply = await sendCommand('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });
-  if (reply.result.exceptionDetails) throw new Error(JSON.stringify(reply.result.exceptionDetails));
-  return reply.result.result.value;
-};
-const textOf = (id) => evaluate(`document.getElementById('${id}').textContent`);
-const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-
-let failureCount = 0;
-const check = (name, passed, details = '') => {
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${details ? '  ' + details : ''}`);
-  if (!passed) failureCount++;
-};
+const browser = await startBrowser({ debugPort, outputDirectory });
+const { send: sendCommand, evaluate, textOf, click, pageErrors } = browser;
+const checks = createChecks();
+const { check } = checks;
 
 try {
   await sendCommand('Runtime.enable');
@@ -281,14 +215,6 @@ try {
 
   check('page has no errors', pageErrors.length === 0, pageErrors.join(' | '));
 } finally {
-  socket.close();
-  chrome.kill();
+  browser.close();
 }
-// Keep the downloads and the screenshot only when they are useful.
-if (failureCount || process.env.SCREENSHOT) {
-  console.log('output:', outputDirectory);
-} else {
-  await sleep(500); // Chrome must exit before its profile can be removed.
-  fs.rmSync(outputDirectory, { recursive: true, force: true });
-}
-process.exit(failureCount ? 1 : 0);
+await finish({ failureCount: checks.failureCount, outputDirectory });

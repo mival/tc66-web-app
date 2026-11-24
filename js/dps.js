@@ -325,7 +325,8 @@
   }
 
   function samplesToCsv(samples) {
-    const lines = ['time_iso,elapsed_s,volts,amps,watts,input_volts,set_volts,set_amps,mode,protection,output'];
+    // mAh and Wh are the counters of the page (0 when a sample has none).
+    const lines = ['time_iso,elapsed_s,volts,amps,watts,input_volts,set_volts,set_amps,mode,protection,output,mAh,Wh'];
     const startTime = samples.length ? samples[0].time : 0;
     for (const sample of samples) {
       lines.push([
@@ -340,6 +341,8 @@
         sample.mode,
         sample.protection,
         sample.outputOn ? 1 : 0,
+        (sample.mAh || 0).toFixed(2),
+        (sample.wh || 0).toFixed(4),
       ].join(','));
     }
     return lines.join('\n') + '\n';
@@ -352,7 +355,11 @@
   const DEFAULT_BAUD_RATE = 9600;
   const DEFAULT_SLAVE_ADDRESS = 1;
 
-  const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+  // In the page, App.sleep (js/common.js) uses a worker timer, so polling keeps its rate in a hidden tab.
+  // In Node (unit tests), sleep uses setTimeout.
+  const sleep = (milliseconds) => (globalScope.App && globalScope.App.sleep
+    ? globalScope.App.sleep(milliseconds)
+    : new Promise((resolve) => setTimeout(resolve, milliseconds)));
 
   function withTimeout(promise, milliseconds, message) {
     let timer;

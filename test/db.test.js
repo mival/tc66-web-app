@@ -36,6 +36,19 @@ test('integrateTimeSeries handles an empty series and a single sample', () => {
   assert.equal(single.mAh, 0); // One sample gives no interval.
 });
 
+test('integrateTimeSeries adds nothing across a gap', () => {
+  // 1 A for 10 s, a 60 s gap (lost connection), then 1 A for 10 s more.
+  const samples = [];
+  for (let second = 0; second <= 10; second++) samples.push({ t: second * 1000, v: 5, a: 1, w: 5 });
+  for (let second = 70; second <= 80; second++) samples.push({ t: second * 1000, v: 5, a: 1, w: 5 });
+  const result = DB.integrateTimeSeries(samples);
+  const expectedMah = (20 / 3600) * 1000; // 20 s at 1 A.
+  assert.ok(Math.abs(result.mAh - expectedMah) < 1e-9, `mAh ${result.mAh}`);
+  assert.equal(result.gapCount, 1);
+  assert.equal(result.durationS, 80); // The duration still counts the gap.
+  assert.equal(DB.MAX_GAP_MS, 30000);
+});
+
 test('efficiency compares delivered energy to the rating', () => {
   assert.equal(DB.efficiency(37, 37), 100);
   assert.equal(DB.efficiency(18.5, 37), 50);

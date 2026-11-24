@@ -1,17 +1,12 @@
 // End-to-end test: runs dps.html in headless Chrome with a mock Web Serial port.
 // The mock is a small DPS3005 emulator. It answers Modbus RTU requests from a register array.
 // Run: BROWSER_PATH=<chrome-headless-shell> node test/dps.e2e.mjs
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { createChecks, finish, makeOutputDirectory, projectDirectory, sleep, startBrowser } from './lib/browser.mjs';
 
-const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectDirectory = path.join(testDirectory, '..');
-const browserPath = process.env.BROWSER_PATH;
-if (!browserPath) throw new Error('Set BROWSER_PATH to a Chrome binary.');
-const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'dps-e2e-'));
+const outputDirectory = makeOutputDirectory('dps-e2e-');
 const debugPort = 9343;
 const pageUrl = pathToFileURL(path.join(projectDirectory, 'dps.html')).href;
 
@@ -99,12 +94,13 @@ const mockSerialScript = `(() => {
     async open(options) {
       dps.openOptions = options;
       let controller;
-      this.readable = new ReadableStream({ start: (streamController) => { controller = streamController; } });
+      this.readable = new ReadableStream({ start: (streamController) => { controller = streamController; dps.controller = streamController; } });
       this.writable = new WritableStream({ write: (data) => {
         const request = new Uint8Array(data);
         dps.frames.push(hex(request));
         if (silent) return;
         if (dps.dropNextReply) { dps.dropNextReply = false; return; }
+        if (dps.failWrites && request[1] !== 0x03) return; // No reply to writes: the page times out.
         const reply = answer(request);
         if (!reply) return;
         // Send noise first, then the reply in two chunks, as a Bluetooth link can do.
@@ -120,91 +116,35 @@ const mockSerialScript = `(() => {
     async close() { dps.closed = true; }
   }
   const port = new MockPort();
+  // Like a real browser, getPorts() returns the port only after the user allowed it in the chooser.
+  let allowed = false;
+  const connectListeners = new Set();
+  // unplug() ends the read stream with an error. replug() fires the 'connect' event of navigator.serial.
+  dps.unplug = () => dps.controller.error(new Error('The device has been lost.'));
+  dps.replug = () => connectListeners.forEach((listener) => listener({ type: 'connect', target: port }));
   Object.defineProperty(navigator, 'serial', { value: {
     requestPort: async (options) => {
       dps.requestOptions.push(JSON.parse(JSON.stringify(options)));
       if (oldBrowser && options.filters && options.filters.some((filter) => filter.bluetoothServiceClassId)) {
         throw new TypeError('A filter must provide a property to filter by.');
       }
+      allowed = true;
       return port;
     },
-    getPorts: async () => [port],
-    addEventListener() {},
+    getPorts: async () => (allowed ? [port] : []),
+    addEventListener(type, listener) { if (type === 'connect') connectListeners.add(listener); },
+    removeEventListener(type, listener) { connectListeners.delete(listener); },
   }});
 })();`;
 
-const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-const chrome = spawn(browserPath, [
-  '--headless', `--remote-debugging-port=${debugPort}`, '--no-sandbox', `--user-data-dir=${outputDirectory}/profile`, 'about:blank',
-], { stdio: ['ignore', 'ignore', 'pipe'] });
-let chromeLog = '';
-chrome.stderr.on('data', (data) => { chromeLog += data; });
-let chromeExitCode = null;
-chrome.on('exit', (code, signal) => { chromeExitCode = code ?? signal; });
-chrome.on('error', (error) => {
-  console.error(`Cannot start Chrome at "${browserPath}": ${error.message}`);
-  process.exit(1);
-});
-
-// Wait up to 15 s for the DevTools endpoint and a page target.
-let socket;
-for (let attempt = 0; attempt < 150 && !socket && chromeExitCode === null; attempt++) {
-  try {
-    const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-    const pageTarget = targets.find((target) => target.type === 'page');
-    if (pageTarget) socket = new WebSocket(pageTarget.webSocketDebuggerUrl);
-  } catch {
-    // The DevTools endpoint is not ready yet.
-  }
-  if (!socket) await sleep(100);
-}
-if (!socket) {
-  chrome.kill();
-  console.error(chromeLog.slice(-4000));
-  const reason = chromeExitCode === null ? 'in 15 s' : `(Chrome stopped with ${chromeExitCode})`;
-  throw new Error(`Chrome did not start ${reason}.`);
-}
-await new Promise((resolve) => socket.addEventListener('open', resolve));
-
-let messageId = 0;
-const pendingReplies = new Map();
-const pageErrors = [];
-socket.addEventListener('message', (event) => {
-  const message = JSON.parse(event.data);
-  if (message.id && pendingReplies.has(message.id)) {
-    pendingReplies.get(message.id)(message);
-    pendingReplies.delete(message.id);
-  }
-  if (message.method === 'Runtime.exceptionThrown') {
-    const details = message.params.exceptionDetails;
-    pageErrors.push(details.exception?.description || details.text);
-  }
-  if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
-    pageErrors.push(message.params.args.map((argument) => argument.value ?? argument.description).join(' '));
-  }
-});
-const sendCommand = (method, params = {}) => new Promise((resolve) => {
-  const id = ++messageId;
-  pendingReplies.set(id, resolve);
-  socket.send(JSON.stringify({ id, method, params }));
-});
-const evaluate = async (expression) => {
-  const reply = await sendCommand('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });
-  if (reply.result.exceptionDetails) throw new Error(JSON.stringify(reply.result.exceptionDetails));
-  return reply.result.result.value;
-};
-const textOf = (id) => evaluate(`document.getElementById('${id}').textContent`);
-const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+const browser = await startBrowser({ debugPort, outputDirectory });
+const { send: sendCommand, evaluate, textOf, click, pageErrors } = browser;
+const checks = createChecks();
+const { check } = checks;
 const registers = () => evaluate('window.__dps.registers');
 const navigate = async (query = '') => {
   await sendCommand('Page.navigate', { url: pageUrl + query });
   await sleep(500);
-};
-
-let failureCount = 0;
-const check = (name, passed, details = '') => {
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${details ? '  ' + details : ''}`);
-  if (!passed) failureCount++;
 };
 
 try {
@@ -216,6 +156,10 @@ try {
   await navigate();
 
   check('nav links to the power supply page', await evaluate(`document.querySelector('.page-nav [aria-current]').textContent`) === 'Power supply');
+  check('polling uses the worker timer', await evaluate(`App.sleep(5).then(() => App.timerKind())`) === 'worker');
+  const visibleButtons = () => evaluate(`['connect', 'choose-port', 'disconnect'].filter((id) => !document.getElementById(id).hidden).join(',')`);
+  check('only Connect shows before the first connection', (await visibleButtons()) === 'connect', await visibleButtons());
+  check('the connection settings are open before Connect', await evaluate(`document.getElementById('connection-details').open`));
 
   await click('input[name="poll-interval"][value="250"]');
   await evaluate(`document.getElementById('log-frames').checked = true`);
@@ -283,12 +227,49 @@ try {
   await evaluate('window.__dps.dropNextReply = true');
   await sleep(2000);
   check('a lost reply does not stop polling', (await textOf('status-text')) === 'Connected', await textOf('status-text'));
+  // 0.5 A for about 2.5 s with the output on: the counters add up some charge.
+  const charge = Number(await textOf('value-charge'));
+  check('the charge and energy counters add up', charge > 0.1 && Number(await textOf('value-energy')) > 0 &&
+    (await textOf('value-on-time')) !== '0:00', `${charge} mAh, ${await textOf('value-on-time')}`);
+  await click('#reset-counters');
+  check('Reset counters sets the counters to 0', (await textOf('value-charge')) === '0.0');
 
   // Protection trip from the supply.
   await evaluate('window.__dps.registers[7] = 2');
   await sleep(600);
   check('protection badge shows OCP', (await textOf('badge-protection')) === 'OCP tripped', await textOf('badge-protection'));
+  check('a protection trip shows an alert and a toast', !(await evaluate(`document.getElementById('protection-alert').hidden`)) &&
+    /Over-current/.test(await textOf('protection-alert-title')) &&
+    /OCP tripped/.test(await evaluate(`document.querySelector('.toast-region')?.textContent || ''`)));
   await evaluate('window.__dps.registers[7] = 0');
+  await sleep(600);
+  check('the alert closes when the protection is clear', await evaluate(`document.getElementById('protection-alert').hidden`));
+
+  // An input voltage that is too low for U-SET 12 V shows a warning.
+  await evaluate('window.__dps.registers[5] = 1000');
+  await sleep(600);
+  check('a too low input voltage shows a warning', !(await evaluate(`document.getElementById('input-warning').hidden`)) &&
+    /too high for the input of 10.00 V/.test(await textOf('input-warning')), await textOf('input-warning'));
+  await evaluate('window.__dps.registers[5] = 2400');
+  await sleep(600);
+  check('the warning closes with a good input voltage', await evaluate(`document.getElementById('input-warning').hidden`));
+
+  // Safety limit 12.5 V: the arrows stop at the limit, and a higher typed value is not sent.
+  await evaluate(`{ const input = document.getElementById('limit-voltage'); input.value = '12.5'; input.dispatchEvent(new Event('change', { bubbles: true })); }`);
+  check('the safety limit shows in the summary', /12.5 V/.test(await textOf('safety-limits-summary')));
+  await click('input[name="voltage-step"][value="1"]');
+  await click('[data-setpoint="voltage"] .step-button[data-step="1"]');
+  await sleep(900);
+  check('the up arrow stops at the safety limit', (await registers())[0] === 1250, String((await registers())[0]));
+  await typeValue('set-voltage', '20');
+  await sleep(300);
+  check('a value above the safety limit is not sent', (await registers())[0] === 1250 &&
+    await evaluate(`document.getElementById('set-voltage').getAttribute('aria-invalid')`) === 'true');
+  await evaluate(`{ const input = document.getElementById('set-voltage'); input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); }`);
+  await evaluate(`{ const input = document.getElementById('limit-voltage'); input.value = ''; input.dispatchEvent(new Event('change', { bubbles: true })); }`);
+  await click('input[name="voltage-step"][value="0.1"]');
+  await typeValue('set-voltage', '12');
+  await sleep(400);
 
   await click('#lock-switch');
   await sleep(600);
@@ -373,6 +354,35 @@ try {
   await click('#disconnect');
   await sleep(400);
   check('disconnect closes the port', await evaluate('window.__dps.closed === true') && (await textOf('status-text')) === 'Not connected');
+  await sleep(200);
+  check('after a connection, Connect and Choose port show', (await visibleButtons()) === 'connect,choose-port', await visibleButtons());
+
+  // Connect uses the allowed port without the chooser.
+  const chooserCalls = (await evaluate('window.__dps.requestOptions')).length;
+  await click('#connect');
+  await sleep(1000);
+  check('Connect uses the known port without the chooser', (await evaluate('window.__dps.requestOptions')).length === chooserCalls &&
+    (await textOf('status-text')) === 'Connected' && (await visibleButtons()) === 'disconnect', await visibleButtons());
+  check('the connection settings close after Connect', !(await evaluate(`document.getElementById('connection-details').open`)));
+
+  // A failed command shows a toast.
+  await evaluate('window.__dps.registers[0x09] = 0');
+  await evaluate('window.__dps.failWrites = true');
+  await click('#output-switch');
+  await sleep(2600);
+  await evaluate('window.__dps.failWrites = false');
+  check('a failed command shows an error toast', /Output on failed/.test(await evaluate(`document.querySelector('.toast-region')?.textContent || ''`)));
+
+  // Unplug: the page reconnects when the port comes back.
+  await evaluate('window.__dps.closed = false; window.__dps.unplug()');
+  await sleep(400);
+  check('a lost connection shows Reconnecting', /Connection lost|Reconnecting/.test(await textOf('status-text')), await textOf('status-text'));
+  await evaluate('window.__dps.replug()');
+  await sleep(1200);
+  check('the page reconnects when the port comes back', (await textOf('status-text')) === 'Connected' &&
+    /Connected again/.test(await textOf('log')), await textOf('status-text'));
+  await click('#disconnect');
+  await sleep(500);
 
   check('lock on connect is off by default', !(await evaluate(`document.getElementById('autolock-switch').checked`)));
   // Switch on "Lock the keys on connect". The browser keeps the setting for the next page load.
@@ -414,13 +424,6 @@ try {
 
   check('page has no errors', pageErrors.length === 0, pageErrors.join(' | '));
 } finally {
-  socket.close();
-  chrome.kill();
+  browser.close();
 }
-if (failureCount || process.env.SCREENSHOT) {
-  console.log('output:', outputDirectory);
-} else {
-  await sleep(500); // Chrome must exit before its profile can be removed.
-  fs.rmSync(outputDirectory, { recursive: true, force: true });
-}
-process.exit(failureCount ? 1 : 0);
+await finish({ failureCount: checks.failureCount, outputDirectory });

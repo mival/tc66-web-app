@@ -173,6 +173,32 @@ DPS5005, which has the same registers and scaling as the DPS3005.
 7. Short the output through a resistor with a low I-SET to see CC. Set a low OCP to see the protection state.
 8. Save the frame log as a fixture for `test/fixtures/dps-frames.json`.
 
+## Page behavior (added 2026-11-24)
+
+- **Known ports.** `navigator.serial.getPorts()` returns the ports that the user allowed before.
+  The meter pages use the port with USB vendor `0x28e9`. The power supply page uses any other port.
+  With more than one match, `localStorage` keeps `getInfo()` of the last port. A Bluetooth COM port can have an empty
+  `getInfo()`, so two such ports need "Choose port…".
+- **Reconnect.** After a lost connection, `App.Reconnector` (`js/common.js`) tries the same port again when
+  `navigator.serial` fires `connect` for it, and every 5 s (12 tries on the meter and power supply pages, 24 on the battery page).
+  A Bluetooth COM port gives no `connect` event, so the timer does the work there.
+- **Worker timer.** Chrome slows timers in a hidden tab, down to one per minute after about 5 minutes.
+  `App.sleep()` runs its timer in a dedicated worker (from a Blob URL, which also works on `file://`). The polling loops and
+  the Modbus gap use it. The tests check `App.timerKind() === 'worker'`.
+- **Gap rule.** The charge and energy integration adds nothing across more than 30 s without samples
+  (`TC66DB_API.MAX_GAP_MS`). The longest sample interval is 10 s. The power supply counters use the same rule.
+- **Cut-off tests.** A battery test with no end time gets its end, totals and sample count from its saved samples on the next page load.
+- **Charts.** All pages use `js/uchart.js` (uPlot). `setWindow()` draws only the visible window (binary search),
+  reduced to about 2000 points with the low and high point of each bucket. A drag zoom stays until a double click.
+
+### Headless Chrome limits in the tests
+
+- A page that DevTools controls gets no animation frames in headless Chrome, so `requestAnimationFrame` never fires.
+  The charts draw on animation frames, so the tests do not check the chart drawing.
+- A uPlot chart built while the DevTools `Page` domain is on can block the page in headless Chrome.
+  A timer fallback for the drawing caused this, so the pages draw only on animation frames.
+- On the battery page, a second `Runtime.evaluate` on the same page load can stall. The battery test does one evaluate per page load where it can.
+
 ## Follow-up ideas (not implemented)
 
 ### Combined TC66 + DPS automated test

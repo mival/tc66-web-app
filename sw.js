@@ -16,8 +16,8 @@ const APP_SHELL = [
   'dps.html',
   'help.html',
   'css/style.css',
+  'js/common.js',
   'js/tc66.js',
-  'js/chart.js',
   'js/stepper.js',
   'js/app.js',
   'js/db.js',
@@ -33,6 +33,8 @@ const APP_SHELL = [
   'js/vendor/uplot/uPlot.min.css',
   'manifest.webmanifest',
   'icon.svg',
+  'img/tc66c.jpg',
+  'img/dps.jpg',
 ];
 
 // Download every file from the server. "reload" skips the HTTP cache of the browser.

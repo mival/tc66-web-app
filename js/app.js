@@ -3,17 +3,17 @@
   'use strict';
 
   const element = (id) => document.getElementById(id);
-  const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+  const sleep = App.sleep;
   const MAX_SAMPLE_COUNT = 200000;
   const MAX_FAILED_POLLS = 3;
   const MAX_LOG_LINES = 200;
 
   const LIVE_CHARTS = [
-    { canvasId: 'chart-voltage', field: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 4, label: 'Voltage' },
-    { canvasId: 'chart-current', field: 'current', colorToken: '--color-current', unit: 'A', decimals: 5, label: 'Current' },
-    { canvasId: 'chart-power', field: 'power', colorToken: '--color-power', unit: 'W', decimals: 3, label: 'Power' },
+    { containerId: 'chart-voltage', field: 'voltage', colorToken: '--color-voltage', unit: 'V', decimals: 4, label: 'Voltage' },
+    { containerId: 'chart-current', field: 'current', colorToken: '--color-current', unit: 'A', decimals: 5, label: 'Current' },
+    { containerId: 'chart-power', field: 'power', colorToken: '--color-power', unit: 'W', decimals: 3, label: 'Power' },
   ];
-  const RECORDING_CHARTS = LIVE_CHARTS.map((chart) => ({ ...chart, canvasId: chart.canvasId.replace('chart-', 'recording-chart-') }));
+  const RECORDING_CHARTS = LIVE_CHARTS.map((chart) => ({ ...chart, containerId: chart.containerId.replace('chart-', 'recording-chart-') }));
 
   let connection = null;
   // Each polling loop has a number. A loop stops when this number changes.
@@ -29,17 +29,13 @@
 
   // ---------- Log and status ----------
 
-  function addLogLine(message) {
-    const logElement = element('log');
-    const line = `${new Date().toLocaleTimeString()}  ${message}\n`;
-    logElement.textContent = (logElement.textContent + line).split('\n').slice(-MAX_LOG_LINES).join('\n');
-    logElement.scrollTop = logElement.scrollHeight;
-  }
+  const addLogLine = (message) => App.addLogLine(message, { maxLines: MAX_LOG_LINES });
+  const fileTimestamp = App.fileTimestamp;
+  const saveFile = App.saveFile;
 
   // state: '' (neutral), 'on' or 'error'.
   function setStatus(text, state = '') {
-    element('status-text').textContent = text;
-    element('status-dot').className = 'dot' + (state ? ' ' + state : '');
+    App.setStatus(text, state);
     // The connection badge shows the same state in short words.
     let badgeText = text;
     let badgeState = state === 'on' ? 'ok' : state === 'error' ? 'error' : 'neutral';
@@ -63,40 +59,43 @@
   }
 
   function setConnectedUi(connected) {
-    element('connect').disabled = connected;
+    App.showConnected(connected);
     element('disconnect').disabled = !connected || flashing;
     element('pause').disabled = !connected;
     element('download-recording').disabled = !connected;
     element('raw-send').disabled = !connected;
     element('check-mode').disabled = !connected || flashing;
     document.querySelectorAll('button[data-command]').forEach((button) => { button.disabled = !connected; });
-    if (!connected) setDeviceMode(null);
+    if (!connected) {
+      setDeviceMode(null);
+      updateChoosePort();
+    }
     refreshFlashButton();
-  }
-
-  function fileTimestamp() {
-    const now = new Date();
-    const pad = (value) => String(value).padStart(2, '0');
-    const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-    const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    return `${date}-${time}`;
-  }
-
-  function saveFile(fileName, content, mimeType) {
-    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   // ---------- Connection ----------
 
+  const PORT_STORAGE_KEY = 'tc66-last-port';
+  const isMeterPort = (info) => info.usbVendorId === TC66.USB_VENDOR_ID;
+  let reconnector = null;
+
+  async function updateChoosePort() {
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isMeterPort);
+    element('choose-port').hidden = !!connection || !known;
+  }
+
+  // Connect uses the meter port that the user allowed before. Without one, it opens the port chooser.
   async function connect() {
     if (connection) return;
+    stopReconnect();
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isMeterPort);
+    if (known) await connectTo(known);
+    else await choosePort();
+  }
+
+  async function choosePort() {
+    if (connection) return;
+    stopReconnect();
     let serialPort;
     try {
       serialPort = await navigator.serial.requestPort({ filters: [{ usbVendorId: TC66.USB_VENDOR_ID }] });
@@ -105,17 +104,28 @@
       if (error.name !== 'NotFoundError') addLogLine(`Port selection failed: ${error.message}`);
       return;
     }
+    await connectTo(serialPort);
+  }
+
+  // Open the port, check the mode and start polling. Return true when the port is open.
+  // quiet: true is for the reconnect attempts. They show no message for each failure.
+  async function connectTo(serialPort, { quiet = false } = {}) {
+    if (connection) return true;
     const newConnection = new TC66.TC66Port(serialPort);
-    setStatus('Opening port…');
+    if (!quiet) setStatus('Opening port…');
     try {
       await newConnection.open();
     } catch (error) {
+      if (quiet) return false;
       setStatus('Cannot open the port', 'error');
-      addLogLine(`Open failed: ${error.message}. Close other programs that use the port. If the meter does not respond, replug it.`);
-      return;
+      const message = `Cannot open the port: ${error.message}. Close other programs that use the port. If the meter does not respond, replug it.`;
+      addLogLine(message);
+      App.toast(message, { kind: 'error' });
+      return false;
     }
     newConnection.onclose = (error) => onConnectionLost(newConnection, error);
     connection = newConnection;
+    App.rememberPort(PORT_STORAGE_KEY, serialPort);
     setConnectedUi(true);
     countBadPacket(true);
     addLogLine('Port open (115200 8N1, DTR and RTS on).');
@@ -127,18 +137,24 @@
       if (mode === 'boot') {
         setStatus('Bootloader mode', 'error');
         addLogLine('The meter is in bootloader mode. Use the firmware update section, or replug without K1 for normal use.');
-        return;
+        return true;
       }
       if (mode !== 'firm') addLogLine(`Unexpected query response "${mode}". The page tries getva.`);
     } catch (error) {
       addLogLine(`query failed: ${error.message}`);
     }
     startPolling();
+    return true;
   }
 
   async function disconnect() {
+    stopReconnect();
     const oldConnection = connection;
-    if (!oldConnection) return;
+    if (!oldConnection) {
+      setConnectedUi(false);
+      setStatus('Not connected');
+      return;
+    }
     connection = null;
     pollingLoopId++;
     await oldConnection.close();
@@ -154,6 +170,40 @@
     setConnectedUi(false);
     setStatus('Connection lost', 'error');
     addLogLine(`Connection lost: ${error ? error.message : 'unknown reason'}`);
+    // Do not reconnect during a firmware update. The meter restarts in another mode.
+    if (!flashing) startReconnect(lostConnection.serialPort);
+  }
+
+  // Try to connect to the same port again, for about one minute. Replugging the meter fires the 'connect' event.
+  function startReconnect(serialPort) {
+    stopReconnect();
+    App.toast('The connection to the meter is lost. The page connects again when the meter is back.', { kind: 'warning' });
+    reconnector = new App.Reconnector({
+      port: serialPort,
+      attempts: 12,
+      delay: 5000,
+      tryConnect: async (port, count) => {
+        setStatus(`Reconnecting (${count}/12)…`, 'error');
+        const connected = await connectTo(port, { quiet: true });
+        if (connected) {
+          addLogLine('Connected again.');
+          App.toast('Connected to the meter again.', { kind: 'success' });
+        }
+        return connected;
+      },
+      onGiveUp: () => {
+        reconnector = null;
+        setStatus('Connection lost', 'error');
+        addLogLine('The page cannot connect again. Replug the meter, then click Connect.');
+        App.toast('The page cannot connect to the meter again. Replug it, then click Connect.', { kind: 'error', milliseconds: 0 });
+      },
+    });
+    reconnector.start();
+  }
+
+  function stopReconnect() {
+    if (reconnector) reconnector.stop();
+    reconnector = null;
   }
 
   // ---------- Live polling ----------
@@ -190,9 +240,11 @@
         countBadPacket();
         addLogLine(error.message);
         if (failedPolls >= MAX_FAILED_POLLS) {
-          addLogLine(`${MAX_FAILED_POLLS} getva requests failed. Polling stops. Replug the meter, then connect again.`);
+          addLogLine(`${MAX_FAILED_POLLS} getva requests failed. The page disconnects and tries to connect again.`);
+          const port = activeConnection.serialPort;
           await disconnect();
           setStatus('Meter does not respond', 'error');
+          startReconnect(port);
           break;
         }
         setStatus(`No valid response (${failedPolls}/${MAX_FAILED_POLLS})`, 'error');
@@ -205,8 +257,10 @@
 
   function addSample(reading) {
     const { decrypted, ...values } = reading;
-    samples.push({ time: Date.now(), ...values });
+    const sample = { time: Date.now(), ...values };
+    samples.push(sample);
     if (samples.length > MAX_SAMPLE_COUNT) samples.splice(0, samples.length - MAX_SAMPLE_COUNT);
+    appendLiveSeries(sample);
 
     element('value-voltage').textContent = reading.voltage.toFixed(4);
     element('value-current').textContent = reading.current.toFixed(5);
@@ -229,6 +283,7 @@
 
   function clearSamples() {
     samples = [];
+    clearLiveSeries();
     element('value-sample-count').textContent = '0';
     element('save-live').disabled = true;
     scheduleDraw();
@@ -236,46 +291,80 @@
 
   // ---------- Charts ----------
 
-  function scheduleDraw() {
-    if (drawScheduled) return;
-    drawScheduled = true;
-    requestAnimationFrame(() => {
-      drawScheduled = false;
-      drawLiveCharts();
-      drawRecordingCharts();
-    });
-  }
+  // The live chart data: seconds since the first sample, and one value array for each chart.
+  // addSample appends to them, so a poll does not copy all samples.
+  const liveSeries = { firstTime: null, times: [], voltage: [], current: [], power: [] };
+  let liveCharts = null;
+  let recordingCharts = null;
 
-  function drawCharts(charts, times, rows, timeStart, timeEnd) {
-    for (const chart of charts) {
-      Chart.drawStrip(element(chart.canvasId), {
-        times,
-        values: rows.map((row) => row[chart.field]),
-        timeStart,
-        timeEnd,
-        color: Chart.resolveColor(`var(${chart.colorToken})`),
-        unit: chart.unit,
-        decimals: chart.decimals,
-        label: chart.label,
-      });
+  function appendLiveSeries(sample) {
+    if (liveSeries.firstTime === null) liveSeries.firstTime = sample.time;
+    liveSeries.times.push((sample.time - liveSeries.firstTime) / 1000);
+    for (const chart of LIVE_CHARTS) liveSeries[chart.field].push(sample[chart.field]);
+    if (liveSeries.times.length > MAX_SAMPLE_COUNT) {
+      const extra = liveSeries.times.length - MAX_SAMPLE_COUNT;
+      liveSeries.times.splice(0, extra);
+      for (const chart of LIVE_CHARTS) liveSeries[chart.field].splice(0, extra);
     }
   }
 
+  function clearLiveSeries() {
+    liveSeries.firstTime = null;
+    liveSeries.times = [];
+    for (const chart of LIVE_CHARTS) liveSeries[chart.field] = [];
+  }
+
+  // Draw on the next animation frame. A hidden tab gets no frames, so it does not draw until it is visible.
+  function scheduleDraw() {
+    if (drawScheduled) return;
+    drawScheduled = true;
+    const draw = () => {
+      if (!drawScheduled) return;
+      drawScheduled = false;
+      drawLiveCharts();
+      drawRecordingCharts();
+    };
+    requestAnimationFrame(draw);
+  }
+
+  // Interactive charts (uPlot). The charts of one group share the cursor.
+  function buildCharts(definitions, syncKey) {
+    const sync = UChart.sync(syncKey);
+    const charts = {};
+    for (const definition of definitions) {
+      charts[definition.field] = UChart.create(element(definition.containerId), {
+        label: definition.label, unit: definition.unit, colorToken: definition.colorToken, decimals: definition.decimals, height: 140, sync,
+      });
+    }
+    return charts;
+  }
+
+  // The charts read the theme colors when they start. Rebuild them after a theme change.
+  function rebuildCharts() {
+    for (const charts of [liveCharts, recordingCharts]) {
+      if (charts) Object.values(charts).forEach((chart) => chart.destroy());
+    }
+    liveCharts = null;
+    recordingCharts = null;
+    scheduleDraw();
+  }
+
   function drawLiveCharts() {
-    const startTime = samples.length ? samples[0].time : 0;
-    const times = samples.map((sample) => (sample.time - startTime) / 1000);
+    if (!liveCharts) liveCharts = buildCharts(LIVE_CHARTS, 'tc66-live');
+    const times = liveSeries.times;
     const lastTime = times.length ? times[times.length - 1] : 0;
     const windowSeconds = Number(Stepper.segmentedValue(element('chart-window')));
     const timeEnd = windowSeconds ? Math.max(lastTime, windowSeconds) : Math.max(lastTime, 10);
     const timeStart = windowSeconds ? timeEnd - windowSeconds : 0;
-    drawCharts(LIVE_CHARTS, times, samples, timeStart, timeEnd);
+    for (const chart of LIVE_CHARTS) liveCharts[chart.field].setWindow(times, liveSeries[chart.field], timeStart, timeEnd);
   }
 
   function drawRecordingCharts() {
-    if (!recording || element('recording-charts').hidden) return;
+    if (!recording || !recording.summary || element('recording-charts').hidden) return;
+    if (!recordingCharts) recordingCharts = buildCharts(RECORDING_CHARTS, 'tc66-recording');
     const rows = recording.summary.rows;
     const times = rows.map((row) => row.timeSeconds);
-    drawCharts(RECORDING_CHARTS, times, rows, 0, Math.max(recording.summary.durationSeconds, 1));
+    for (const chart of RECORDING_CHARTS) recordingCharts[chart.field].setData(times, rows.map((row) => row[chart.field]));
   }
 
   // ---------- Offline recording ----------
@@ -312,6 +401,7 @@
     } catch (error) {
       progress.textContent = '';
       addLogLine(`gtrec failed: ${error.message}`);
+      App.toast(`The recording download failed: ${error.message}`, { kind: 'error' });
     } finally {
       element('download-recording').disabled = !connection;
     }
@@ -329,7 +419,7 @@
     element('recording-charts').hidden = !hasRecords;
     element('recording-summary').innerHTML = hasRecords ? `
       <dl class="info">
-        <dt>Records</dt><dd>${summary.count} × ${period} s = ${Chart.formatTime(summary.durationSeconds)}</dd>
+        <dt>Records</dt><dd>${summary.count} × ${period} s = ${UChart.formatTime(summary.durationSeconds)}</dd>
         <dt>Average</dt><dd>${summary.averageVoltage.toFixed(3)} V · ${summary.averageCurrent.toFixed(4)} A · ${summary.averagePower.toFixed(3)} W</dd>
         <dt>Voltage range</dt><dd>${summary.minimumVoltage.toFixed(3)} – ${summary.maximumVoltage.toFixed(3)} V</dd>
         <dt>Peak</dt><dd>${summary.maximumCurrent.toFixed(4)} A · ${summary.maximumPower.toFixed(3)} W</dd>
@@ -391,6 +481,7 @@
       addLogLine(`${command} sent.`);
     } catch (error) {
       addLogLine(`${command} failed: ${error.message}`);
+      App.toast(`${command} failed: ${error.message}`, { kind: 'error' });
     }
   }
 
@@ -414,6 +505,7 @@
       addLogLine(`query → "${mode}"`);
     } catch (error) {
       addLogLine(`Check mode failed: ${error.message}`);
+      App.toast(`Check mode failed: ${error.message}`, { kind: 'error' });
     }
   }
 
@@ -478,6 +570,7 @@
     } catch (error) {
       element('flash-status').textContent = `Failed: ${error.message}`;
       addLogLine(`Firmware update failed: ${error.message}`);
+      App.toast(`Firmware update failed: ${error.message}`, { kind: 'error', milliseconds: 0 });
       addLogLine('If the meter does not start, try the update again before you unplug it.');
     } finally {
       flashing = false;
@@ -494,7 +587,8 @@
       setStatus('Web Serial not available', 'error');
     }
     element('connect').addEventListener('click', connect);
-    element('disconnect').addEventListener('click', disconnect);
+    element('disconnect').addEventListener('click', () => disconnect());
+    element('choose-port').addEventListener('click', choosePort);
     element('pause').addEventListener('click', () => {
       if (!connection) return;
       if (pollingPaused) startPolling();
@@ -525,8 +619,7 @@
     element('firmware-file').addEventListener('change', onFirmwareFile);
     element('update-confirm').addEventListener('change', refreshFlashButton);
     element('flash').addEventListener('click', flashFirmware);
-    new ResizeObserver(scheduleDraw).observe(document.querySelector('main'));
-    Theme.init(scheduleDraw); // Redraw the charts when the scheme changes.
+    Theme.init(rebuildCharts); // The charts take the colors of the new scheme.
     window.addEventListener('pagehide', () => { if (connection) connection.close(); });
     scheduleDraw();
   }

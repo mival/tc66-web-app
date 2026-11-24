@@ -13,6 +13,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <title>DPS Power Supply</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="js/vendor/uplot/uPlot.min.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -24,7 +25,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   </div>
   <div class="row header-actions">
     <button class="primary" id="connect">Connect</button>
-    <button id="disconnect" disabled>Disconnect</button>
+    <button id="choose-port" type="button" hidden title="Choose another serial port">Choose port…</button>
+    <button id="disconnect" hidden disabled>Disconnect</button>
     <button class="icon-button" id="theme-toggle" data-theme-toggle type="button" aria-label="Theme: auto">
       <svg class="icon-auto" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" /></svg>
       <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></svg>
@@ -36,6 +38,35 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <main>
   <section id="unsupported" class="error-message" hidden>
     This browser has no Web Serial API. Use Chrome or Edge (or Firefox 151+), and open the page from a local file or from localhost/https.
+  </section>
+
+  <section class="connection-panel">
+    <details id="connection-details" open>
+      <summary id="connection-heading">Connection settings</summary>
+      <div class="field-grid">
+        <label>Ports
+          <select id="port-kind">
+            <option value="any" selected>All serial ports</option>
+            <option value="bluetooth">Bluetooth (RFCOMM) only</option>
+          </select>
+        </label>
+        <label>Baud rate
+          <select id="baud-rate">
+            <option value="2400">2400</option>
+            <option value="4800">4800</option>
+            <option value="9600" selected>9600</option>
+            <option value="19200">19200</option>
+          </select>
+        </label>
+        <label>Slave address <input type="number" id="slave-address" min="1" max="247" step="1" value="1"></label>
+      </div>
+      <p class="hint">
+        Bluetooth: pair the supply in the system settings first (PIN usually 1234). Then select its Bluetooth COM port
+        (outgoing) or its RFCOMM entry. Close the phone app, because the module accepts only one connection.
+        The baud rate and the slave address must agree with the settings on the supply.
+        Connect uses the last port again. Use "Choose port…" to select another one.
+      </p>
+    </details>
   </section>
 
   <section aria-labelledby="live-heading">
@@ -52,6 +83,13 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <div class="readout power"><div class="label" data-unit="W">Power</div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
       <div class="readout input"><div class="label" data-unit="V">Input voltage <button type="button" class="help-btn" popovertarget="help-dps-input" aria-label="What is the input voltage?">?</button></div><span class="value" id="value-input-voltage">–</span><span class="unit">V</span></div>
     </div>
+    <div class="secondary-values dps-counters">
+      <div><span>Charge </span><b id="value-charge">0.0</b> mAh <button type="button" class="help-btn" popovertarget="help-dps-counters" aria-label="What are the charge and energy counters?">?</button></div>
+      <div><span>Energy </span><b id="value-energy">0.000</b> Wh</div>
+      <div><span>Output on for </span><b id="value-on-time">0:00</b></div>
+      <div><button type="button" class="link-button" id="reset-counters">Reset counters</button></div>
+    </div>
+    <div popover id="help-dps-counters" class="help-pop">The page adds up the charge and the energy at the output while it polls. The supply does not count them. A gap of more than 30 s (for example a lost connection) adds nothing.</div>
     <div popover id="help-dps-voltage" class="help-pop">Voltage at the output terminals. In CV mode it is the same as U-SET.</div>
     <div popover id="help-dps-current" class="help-pop">Current that the load draws. In CC mode the supply holds it at I-SET and lowers the voltage.</div>
     <div popover id="help-dps-input" class="help-pop">Voltage from the adapter that feeds the supply. The output can be at most about 90 % of it.</div>
@@ -65,6 +103,12 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
         <span>Output <b id="output-state">off</b></span>
       </label>
     </div>
+
+    <div class="protection-alert" id="protection-alert" role="alert" hidden>
+      <strong id="protection-alert-title">Protection</strong>
+      <span id="protection-alert-text"></span>
+    </div>
+    <p class="input-warning" id="input-warning" role="status" hidden></p>
 
     <div class="setpoints">
       <fieldset class="setpoint" data-setpoint="voltage">
@@ -125,6 +169,14 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       The output cannot be higher than about 90 % of the input voltage.
       <a href="help.html#dps-buttons">How to use the buttons on the supply, and how to set OCP</a>.
     </p>
+    <details class="safety-limits" id="safety-limits">
+      <summary>Safety limits <span class="hint" id="safety-limits-summary">none</span></summary>
+      <p class="hint">The page does not send a voltage or a current limit above these values. Leave a field empty for no limit. The browser keeps the values.</p>
+      <div class="field-grid">
+        <label>Highest voltage (V) <input type="number" id="limit-voltage" min="0" max="32" step="0.1" placeholder="no limit" data-stepper="voltage limit"></label>
+        <label>Highest current limit (A) <input type="number" id="limit-current" min="0" max="5" step="0.01" placeholder="no limit" data-stepper="current limit"></label>
+      </div>
+    </details>
   </section>
 
   <section aria-labelledby="charts-heading">
@@ -154,14 +206,14 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       </div>
     </div>
     <div class="charts" role="img" aria-label="Charts of output voltage, output current, power and input voltage over time. The current values are shown above.">
-      <canvas class="strip" id="chart-voltage"></canvas>
-      <canvas class="strip" id="chart-current"></canvas>
-      <canvas class="strip" id="chart-power"></canvas>
-      <canvas class="strip" id="chart-input-voltage"></canvas>
+      <div class="uchart" id="chart-voltage"></div>
+      <div class="uchart" id="chart-current"></div>
+      <div class="uchart" id="chart-power"></div>
+      <div class="uchart" id="chart-input-voltage"></div>
     </div>
   </section>
 
-  <div class="two-columns">
+  <div class="device-row">
     <section aria-labelledby="device-heading">
       <h2 id="device-heading">Device</h2>
       <dl class="info">
@@ -170,47 +222,23 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
         <dt>Range</dt><dd id="device-range">–</dd>
       </dl>
       <div class="device-controls">
-        <label class="switch-field">
-          <input type="checkbox" switch role="switch" id="lock-switch" disabled>
-          <span>Lock the keys on the supply</span>
-        </label>
-        <label class="switch-field">
-          <input type="checkbox" switch role="switch" id="autolock-switch" aria-describedby="autolock-hint">
-          <span>Lock the keys on connect</span>
-        </label>
-        <p class="hint autolock-hint" id="autolock-hint">The page locks the keys when it connects. Disconnect unlocks them again, if the page locked them. The browser keeps this setting.</p>
+        <div class="lock-group">
+          <label class="switch-field">
+            <input type="checkbox" switch role="switch" id="lock-switch" disabled>
+            <span>Lock the keys on the supply</span>
+          </label>
+          <label class="switch-field">
+            <input type="checkbox" switch role="switch" id="autolock-switch" aria-describedby="autolock-hint">
+            <span>Lock the keys on connect</span>
+          </label>
+          <p class="hint" id="autolock-hint">The page locks the keys when it connects. Disconnect unlocks them again, if the page locked them. The browser keeps this setting.</p>
+        </div>
         <div class="brightness-field">
           <label for="brightness">Display brightness</label>
           <input type="range" id="brightness" min="0" max="5" step="1" value="4" disabled>
           <output id="brightness-value" for="brightness">4</output>
         </div>
       </div>
-    </section>
-
-    <section aria-labelledby="connection-heading">
-      <h2 id="connection-heading">Connection</h2>
-      <div class="field-grid">
-        <label>Ports
-          <select id="port-kind">
-            <option value="any" selected>All serial ports</option>
-            <option value="bluetooth">Bluetooth (RFCOMM) only</option>
-          </select>
-        </label>
-        <label>Baud rate
-          <select id="baud-rate">
-            <option value="2400">2400</option>
-            <option value="4800">4800</option>
-            <option value="9600" selected>9600</option>
-            <option value="19200">19200</option>
-          </select>
-        </label>
-        <label>Slave address <input type="number" id="slave-address" min="1" max="247" step="1" value="1"></label>
-      </div>
-      <p class="hint">
-        Bluetooth: pair the supply in the system settings first (PIN usually 1234). Then select its Bluetooth COM port
-        (outgoing) or its RFCOMM entry. Close the phone app, because the module accepts only one connection.
-        The baud rate and the slave address must agree with the settings on the supply.
-      </p>
     </section>
   </div>
 
@@ -277,8 +305,10 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   <span class="app-update-message" data-app-update-message role="status" hidden></span>
 </footer>
 <script src="js/version.js"></script>
+<script src="js/common.js"></script>
 <script src="js/dps.js"></script>
-<script src="js/chart.js"></script>
+<script src="js/vendor/uplot/uPlot.iife.min.js"></script>
+<script src="js/uchart.js"></script>
 <script src="js/stepper.js"></script>
 <script src="js/theme.js"></script>
 <script src="js/dps-app.js"></script>

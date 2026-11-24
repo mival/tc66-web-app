@@ -608,20 +608,7 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
 }
 
 .photo-slot { display: flex; flex-direction: column; }
-.photo-img { width: 100%; height: auto; border-radius: 8px; }
-.photo-ph { display: none; }
-.photo-slot.is-empty .photo-img { display: none; }
-.photo-slot.is-empty .photo-ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 150px;
-  border: 2px dashed color-mix(in srgb, var(--color-muted) 40%, transparent);
-  border-radius: 8px;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
+.photo-img { width: 100%; height: auto; border-radius: 8px; background: #fff; }
 
 .link-list { list-style: none; padding-left: 0; }
 .link-list li { margin: 6px 0; }
@@ -763,7 +750,8 @@ fieldset.setpoint {
 .setpoint[data-setpoint="voltage"] { --tint: var(--color-voltage); }
 .setpoint[data-setpoint="current"] { --tint: var(--color-current); }
 
-.setpoint-dial { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+/* ▼ value ▲ stay together in the middle of the box. */
+.setpoint-dial { display: grid; grid-template-columns: auto minmax(0, max-content) auto; justify-content: center; align-items: center; gap: 12px; }
 .step-button {
   display: inline-grid;
   place-items: center;
@@ -785,9 +773,8 @@ fieldset.setpoint {
   min-inline-size: 0;
 }
 .setpoint-value input {
-  inline-size: 6.5ch; /* Fallback width. field-sizing fits the input to the number where supported. */
-  field-sizing: content;
-  min-inline-size: 3ch;
+  /* Every value has at most 5 characters (for example 32.00, 5.000 or 15.00), so the field is 5 digits wide. */
+  inline-size: calc(5ch + 14px);
   max-inline-size: 100%;
   padding: 2px 4px;
   border: 1px solid transparent;
@@ -944,4 +931,85 @@ dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .preset-switches { display: grid; gap: 4px; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 14px; }
 .dialog-actions-end { display: flex; gap: 8px; margin-inline-start: auto; }
-.autolock-hint { margin-top: -8px; }
+.lock-group { display: grid; gap: 2px; }
+.lock-group .hint { margin-top: 2px; }
+
+/* Photo of the DPS front panel on the help page. */
+.panel-photo { margin: 10px 0 14px; max-inline-size: 360px; }
+.panel-photo img { inline-size: 100%; block-size: auto; border-radius: 10px; background: #fff; }
+.panel-photo figcaption { margin-top: 6px; font-size: 0.8rem; color: var(--color-muted); }
+
+/* Toasts: short messages under the header. js/common.js adds them. */
+.toast-region {
+  position: fixed;
+  inset-block-start: 72px;
+  inset-inline-end: max(var(--gutter), env(safe-area-inset-right, 0px));
+  z-index: 40;
+  display: grid;
+  gap: 8px;
+  inline-size: min(380px, calc(100vw - 2 * var(--gutter)));
+  pointer-events: none;
+}
+.toast {
+  --tint: var(--color-accent);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 6px 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--tint) 55%, var(--color-border));
+  border-inline-start: 4px solid var(--tint);
+  border-radius: 10px;
+  background: var(--color-panel);
+  color: var(--color-text);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+  font-size: 0.9rem;
+  pointer-events: auto;
+}
+.toast span { flex: 1; padding-top: 4px; }
+.toast-error { --tint: var(--color-danger); }
+.toast-success { --tint: var(--color-success); }
+.toast-warning { --tint: var(--color-warning); }
+.toast-close { min-inline-size: var(--target-size); padding: 0; border: 0; background: transparent; font-size: 1.2rem; line-height: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: toast-in 0.2s ease-out; }
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } }
+
+/* Power supply page: connection settings on top, Device full width. */
+.device-row { display: grid; }
+.device-row .device-controls { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); align-items: start; }
+.connection-panel summary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.connection-panel details[open] summary { margin-bottom: 8px; }
+
+/* Power supply warnings: a protection trip and a too low input voltage. */
+.protection-alert {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-danger);
+  border-inline-start-width: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-text);
+}
+.protection-alert strong { color: var(--color-danger); }
+.input-warning {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+.safety-limits { margin-top: 10px; }
+.safety-limits summary .hint { margin: 0 0 0 8px; font-weight: 400; text-transform: none; }
+.safety-limits.active summary .hint { color: var(--color-warning); font-weight: 600; }
+.dps-counters { margin-top: 10px; margin-bottom: 0; }
+.dps-counters .link-button { min-height: 0; }
+
+/* Links in text use the accent color in both themes. */
+:where(main, footer) a:not([class]) { color: var(--color-accent); }

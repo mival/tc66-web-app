@@ -197,10 +197,11 @@ test('toRegister rounds and checks the range', () => {
 test('samplesToCsv writes one row for each sample', () => {
   const { registers } = DPS.parseResponse(frame('status_request'), frame('status_cv_on'));
   const status = DPS.decodeStatus(registers);
-  const csv = DPS.samplesToCsv([{ time: 0, ...status }, { time: 1500, ...status }]).trim().split('\n');
-  assert.equal(csv[0], 'time_iso,elapsed_s,volts,amps,watts,input_volts,set_volts,set_amps,mode,protection,output');
+  const csv = DPS.samplesToCsv([{ time: 0, ...status }, { time: 1500, ...status, mAh: 0.21, wh: 0.00106 }]).trim().split('\n');
+  assert.equal(csv[0], 'time_iso,elapsed_s,volts,amps,watts,input_volts,set_volts,set_amps,mode,protection,output,mAh,Wh');
   assert.equal(csv.length, 3);
-  assert.equal(csv[2], '1970-01-01T00:00:01.500Z,1.500,4.98,0.512,2.55,12.10,5.00,1.000,CV,OK,1');
+  assert.equal(csv[1].endsWith(',0.00,0.0000'), true); // A sample with no counters gives 0.
+  assert.equal(csv[2], '1970-01-01T00:00:01.500Z,1.500,4.98,0.512,2.55,12.10,5.00,1.000,CV,OK,1,0.21,0.0011');
 });
 
 // ---------- Transport ----------

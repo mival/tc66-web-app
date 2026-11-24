@@ -3,7 +3,7 @@
   'use strict';
 
   const element = (id) => document.getElementById(id);
-  const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+  const sleep = App.sleep; // A worker timer: polling keeps its rate in a hidden tab.
   const LIVE_BUFFER_LIMIT = 4000; // Samples kept for the idle live charts.
   const DB_FLUSH_INTERVAL_MS = 15000; // Write buffered samples to the database at most this often.
   const ETA_WINDOW_MS = 5 * 60 * 1000; // The remaining-time estimate uses the average power of this period.
@@ -29,23 +29,15 @@
 
   // ---------- Log and status ----------
 
-  function addLogLine(message) {
-    const logElement = element('log');
-    const line = `${new Date().toLocaleTimeString()}  ${message}\n`;
-    logElement.textContent = (logElement.textContent + line).split('\n').slice(-200).join('\n');
-    logElement.scrollTop = logElement.scrollHeight;
-  }
-
-  function setStatus(text, state = '') {
-    element('status-text').textContent = text;
-    element('status-dot').className = 'dot' + (state ? ' ' + state : '');
-  }
+  const addLogLine = (message) => App.addLogLine(message, { maxLines: 200 });
+  const setStatus = App.setStatus;
 
   // ---------- Database ----------
 
   async function initDatabase() {
     try {
       db = await TC66DB_API.TC66DB.open({});
+      await recoverUnfinishedTests();
       await refreshHistory();
     } catch (error) {
       element('db-error').hidden = false;
@@ -56,10 +48,55 @@
     }
   }
 
+  // A test has no end when the tab closed or crashed during the test. Its samples are saved.
+  // Close each such test now, with the totals and the end time of its saved samples.
+  async function recoverUnfinishedTests() {
+    const unfinished = (await db.listSessions()).filter((session) => !session.endedAt);
+    for (const session of unfinished) {
+      const samples = await db.getSamples(session.id);
+      const totals = TC66DB_API.integrateTimeSeries(samples);
+      await db.endSession(session.id, {
+        endedAt: samples.length ? samples[samples.length - 1].t : session.startedAt,
+        mAh: totals.mAh,
+        wh: totals.wh,
+        sampleCount: samples.length,
+      });
+      addLogLine(`Test "${session.name}" was not finished. The page closed it: ${samples.length} samples, ${totals.mAh.toFixed(1)} mAh.`);
+    }
+    if (unfinished.length) {
+      App.toast(`${unfinished.length === 1 ? 'A test was' : `${unfinished.length} tests were`} cut off. The page saved the measured part.`, { kind: 'warning', milliseconds: 10000 });
+    }
+  }
+
   // ---------- Connection ----------
 
+  const PORT_STORAGE_KEY = 'tc66-last-port';
+  const isMeterPort = (info) => info.usbVendorId === TC66.USB_VENDOR_ID;
+  let reconnector = null;
+
+  function setConnectedUi(connected) {
+    App.showConnected(connected);
+    if (!connected) updateChoosePort();
+    refreshTestButtons();
+  }
+
+  async function updateChoosePort() {
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isMeterPort);
+    element('choose-port').hidden = !!connection || !known;
+  }
+
+  // Connect uses the meter port that the user allowed before. Without one, it opens the port chooser.
   async function connect() {
     if (connection) return;
+    stopReconnect();
+    const known = await App.findKnownPort(PORT_STORAGE_KEY, isMeterPort);
+    if (known) await connectTo(known);
+    else await choosePort();
+  }
+
+  async function choosePort() {
+    if (connection) return;
+    stopReconnect();
     let serialPort;
     try {
       serialPort = await navigator.serial.requestPort({ filters: [{ usbVendorId: TC66.USB_VENDOR_ID }] });
@@ -67,19 +104,29 @@
       if (error.name !== 'NotFoundError') addLogLine(`Port selection failed: ${error.message}`);
       return;
     }
+    await connectTo(serialPort);
+  }
+
+  // Open the port and start polling. Return true when the port is open.
+  // quiet: true is for the reconnect attempts. They show no message for each failure.
+  async function connectTo(serialPort, { quiet = false } = {}) {
+    if (connection) return true;
     const newConnection = new TC66.TC66Port(serialPort);
-    setStatus('Opening port…');
+    if (!quiet) setStatus('Opening port…');
     try {
       await newConnection.open();
     } catch (error) {
+      if (quiet) return false;
       setStatus('Cannot open the port', 'error');
-      addLogLine(`Open failed: ${error.message}. Close other programs that use the port.`);
-      return;
+      const message = `Cannot open the port: ${error.message}. Close other programs that use the port.`;
+      addLogLine(message);
+      App.toast(message, { kind: 'error' });
+      return false;
     }
     newConnection.onclose = (error) => onConnectionLost(newConnection, error);
     connection = newConnection;
-    element('connect').disabled = true;
-    element('disconnect').disabled = false;
+    App.rememberPort(PORT_STORAGE_KEY, serialPort);
+    setConnectedUi(true);
     addLogLine('Port open (115200 8N1, DTR and RTS on).');
     try {
       const mode = await newConnection.query();
@@ -87,41 +134,93 @@
       if (mode === 'boot') {
         setStatus('Bootloader mode', 'error');
         addLogLine('The meter is in bootloader mode. Replug it without K1 for normal use.');
-        return;
+        return true;
       }
     } catch (error) {
       addLogLine(`query failed: ${error.message}`);
     }
     setStatus('Connected', 'on');
-    element('test-status').textContent = 'Ready. Start a test, or enable automatic start.';
+    if (recording) {
+      element('test-status').textContent = `Recording "${recording.name}" again after the reconnect…`;
+    } else {
+      element('test-status').textContent = 'Ready. Start a test, or enable automatic start.';
+    }
     refreshTestButtons();
     startPolling();
+    return true;
   }
 
   async function disconnect() {
+    stopReconnect();
     const current = connection;
-    if (!current) return;
     if (recording) await stopTest('disconnect');
+    if (!current) {
+      setConnectedUi(false);
+      setStatus('Not connected');
+      return;
+    }
     connection = null;
     pollingLoopId++;
     await current.close();
-    element('connect').disabled = false;
-    element('disconnect').disabled = true;
+    setConnectedUi(false);
     setStatus('Not connected');
     addLogLine('Port closed.');
-    refreshTestButtons();
   }
 
+  // A running test continues after a lost connection. The page connects again and adds the new samples.
+  // The time without samples is a gap: the page adds no charge for it.
   function onConnectionLost(lost, error) {
     if (connection !== lost) return;
-    if (recording) stopTest('connection lost').catch(() => {});
     connection = null;
     pollingLoopId++;
-    element('connect').disabled = false;
-    element('disconnect').disabled = true;
+    setConnectedUi(false);
     setStatus('Connection lost', 'error');
     addLogLine(`Connection lost: ${error ? error.message : 'unknown reason'}`);
-    refreshTestButtons();
+    if (recording) {
+      recording.prev = null; // Do not integrate across the gap.
+      element('test-status').textContent = `Connection lost. The test "${recording.name}" waits for the meter…`;
+    }
+    startReconnect(lost.serialPort);
+  }
+
+  function onConnectionLostAfterClose(closedConnection) {
+    connection = closedConnection; // onConnectionLost checks that this connection is the active one.
+    onConnectionLost(closedConnection, new Error('The meter does not respond.'));
+  }
+
+  // Try to connect to the same port again, for about two minutes. Replugging the meter fires the 'connect' event.
+  function startReconnect(serialPort) {
+    stopReconnect();
+    App.toast(recording
+      ? 'The connection to the meter is lost. The test continues when the meter is back.'
+      : 'The connection to the meter is lost. The page connects again when the meter is back.', { kind: 'warning' });
+    reconnector = new App.Reconnector({
+      port: serialPort,
+      attempts: 24,
+      delay: 5000,
+      tryConnect: async (port, count) => {
+        setStatus(`Reconnecting (${count}/24)…`, 'error');
+        const connected = await connectTo(port, { quiet: true });
+        if (connected) {
+          addLogLine('Connected again.');
+          App.toast('Connected to the meter again.', { kind: 'success' });
+        }
+        return connected;
+      },
+      onGiveUp: async () => {
+        reconnector = null;
+        setStatus('Connection lost', 'error');
+        addLogLine('The page cannot connect again. Replug the meter, then click Connect.');
+        if (recording) await stopTest('connection lost');
+        App.toast('The page cannot connect to the meter again. Replug it, then click Connect.', { kind: 'error', milliseconds: 0 });
+      },
+    });
+    reconnector.start();
+  }
+
+  function stopReconnect() {
+    if (reconnector) reconnector.stop();
+    reconnector = null;
   }
 
   // ---------- Polling ----------
@@ -145,7 +244,14 @@
         if (loopId !== pollingLoopId || connection !== active) break;
         failures++;
         addLogLine(error.message);
-        if (failures >= 3) { addLogLine('Three reads failed. Polling stops.'); await disconnect(); break; }
+        if (failures >= 3) {
+          addLogLine('Three reads failed. The page closes the port and tries to connect again.');
+          pollingLoopId++;
+          connection = null;
+          await active.close();
+          onConnectionLostAfterClose(active);
+          break;
+        }
         await active.discardUntilSilent(300).catch(() => {});
       }
       const interval = Number(Stepper.segmentedValue(element('sample-interval')));
@@ -189,7 +295,8 @@
     const ratedWh = ratedMah != null && nominalV != null ? (ratedMah * nominalV) / 1000 : null;
     const startedAt = Date.now();
     // Set the recording state now. Samples buffer while createSession resolves.
-    recording = { sessionId: null, startedAt, samples: [], pending: [], totalMah: 0, totalWh: 0, ratedWh, prev: null, lastFlush: startedAt, energyMarks: [] };
+    recording = { name, sessionId: null, startedAt, samples: [], pending: [], totalMah: 0, totalWh: 0, ratedWh, prev: null, lastFlush: startedAt, energyMarks: [] };
+    App.WakeLock.acquire(); // Keep the screen on, so the computer does not sleep during the test.
     liveBuffer = [];
     autoBelowSince = null;
     element('test-status').textContent = `Recording "${name}"${auto ? ' (auto start)' : ''}…`;
@@ -211,7 +318,7 @@
     recording.samples.push(sample);
     recording.pending.push(sample);
     // Integrate between the last two samples (trapezoid rule).
-    if (recording.prev) {
+    if (recording.prev && sample.t - recording.prev.t <= TC66DB_API.MAX_GAP_MS) {
       const dtHours = (sample.t - recording.prev.t) / 3600000;
       if (dtHours > 0) {
         recording.totalMah += ((sample.a + recording.prev.a) / 2) * dtHours * 1000;
@@ -287,6 +394,7 @@
     const finished = recording;
     recording = null;
     autoBelowSince = null;
+    App.WakeLock.release();
     updateRemaining();
     if (db && finished.sessionId != null) {
       try {
@@ -431,16 +539,7 @@
     return lines.join('\n') + '\n';
   }
 
-  function saveFile(name, content, type) {
-    const url = URL.createObjectURL(new Blob([content], { type }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
+  const saveFile = App.saveFile;
 
   function slug(text) {
     return text.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'test';
@@ -456,7 +555,14 @@
       setStatus('Web Serial not available', 'error');
     }
     element('connect').addEventListener('click', connect);
-    element('disconnect').addEventListener('click', disconnect);
+    element('disconnect').addEventListener('click', () => disconnect());
+    element('choose-port').addEventListener('click', choosePort);
+    // Warn before the tab closes during a test. The saved samples stay, but the test stops.
+    window.addEventListener('beforeunload', (event) => {
+      if (!recording) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
     Theme.init(rebuildCharts); // Rebuild the charts with the new colors when the scheme changes.
     element('start-test').addEventListener('click', () => startTest(false));
     element('stop-test').addEventListener('click', () => stopTest('manual'));

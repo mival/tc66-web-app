@@ -5,22 +5,13 @@
 // The capacity math has coverage in test/db.test.js. This test covers the IndexedDB store and the UI.
 // It uses one synchronous DevTools evaluate per page, which is stable in headless Chrome.
 // CI runs the unit tests and the meter test. Run this one with: BROWSER_PATH=<chrome> node test/battery.e2e.mjs
-import { spawn } from 'node:child_process';
-import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createChecks, finish, makeOutputDirectory, sleep, startBrowser, startStaticServer } from './lib/browser.mjs';
 
 const require = createRequire(import.meta.url);
 const TC66 = require('../js/tc66.js');
-const testDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectDirectory = path.join(testDirectory, '..');
-const browserPath = process.env.BROWSER_PATH;
-if (!browserPath) throw new Error('Set BROWSER_PATH to a Chrome binary.');
-const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'tc66-batt-'));
+const outputDirectory = makeOutputDirectory('tc66-batt-');
 const debugPort = 9341;
 
 // Build a valid encrypted getva response for a chosen voltage and current.
@@ -61,81 +52,69 @@ const mockSerialScript = `(() => {
     async close() {}
   }
   const port = new MockPort();
+  let allowed = false; // Like a real browser: getPorts() returns the port after the chooser.
   Object.defineProperty(navigator, 'serial', { value: {
-    requestPort: async () => port, getPorts: async () => [port], addEventListener() {},
+    requestPort: async () => { allowed = true; return port; },
+    getPorts: async () => (allowed ? [port] : []),
+    addEventListener() {},
+    removeEventListener() {},
   }});
   window.confirm = () => true;
 })();`;
 
-// Minimal static file server rooted at the project directory.
-const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json' };
-const server = createServer((req, res) => {
-  const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const filePath = path.join(projectDirectory, urlPath === '/' ? 'index.html' : urlPath);
-  if (!filePath.startsWith(projectDirectory) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    res.writeHead(404); res.end('not found'); return;
-  }
-  res.writeHead(200, { 'content-type': mimeTypes[path.extname(filePath)] || 'application/octet-stream' });
-  fs.createReadStream(filePath).pipe(res);
-});
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-const baseUrl = `http://127.0.0.1:${server.address().port}`;
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const chrome = spawn(browserPath, [
-  '--headless', `--remote-debugging-port=${debugPort}`, '--no-sandbox', `--user-data-dir=${outputDirectory}/profile`, 'about:blank',
-], { stdio: 'ignore' });
-chrome.on('error', (error) => { console.error(`Cannot start Chrome: ${error.message}`); process.exit(1); });
-
-let socket;
-for (let attempt = 0; attempt < 150 && !socket; attempt++) {
-  try {
-    const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-    const page = targets.find((t) => t.type === 'page');
-    if (page) socket = new WebSocket(page.webSocketDebuggerUrl);
-  } catch { /* not ready */ }
-  if (!socket) await sleep(100);
-}
-if (!socket) { chrome.kill(); throw new Error('Chrome did not start.'); }
-await new Promise((resolve) => socket.addEventListener('open', resolve));
-
-let messageId = 0;
-const pending = new Map();
-const pageErrors = [];
-socket.addEventListener('message', (event) => {
-  const message = JSON.parse(event.data);
-  if (message.id && pending.has(message.id)) { pending.get(message.id)(message); pending.delete(message.id); }
-  if (message.method === 'Runtime.exceptionThrown') pageErrors.push(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
-  if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') pageErrors.push(message.params.args.map((a) => a.value ?? a.description).join(' '));
-});
-process.on('unhandledRejection', (error) => { console.error('unhandled rejection:', error && error.message); });
-const sendOnce = (method, params, timeoutMs) => new Promise((resolve, reject) => {
-  const id = ++messageId;
-  const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP ${method} timed out`)); }, timeoutMs);
-  pending.set(id, (message) => { clearTimeout(timer); resolve(message); });
-  socket.send(JSON.stringify({ id, method, params }));
-});
-const send = (method, params = {}) => sendOnce(method, params, 15000);
+const server = await startStaticServer();
+const { baseUrl } = server;
 // Do one Runtime.evaluate per navigation. A second evaluate in the same window can stall in headless Chrome.
-const evaluate = async (expression) => {
-  const reply = await sendOnce('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, 15000);
-  if (reply.result.exceptionDetails) throw new Error(JSON.stringify(reply.result.exceptionDetails));
-  return reply.result.result.value;
-};
-const textOf = (id) => evaluate(`document.getElementById('${id}').textContent`);
-const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-
-let failures = 0;
-const check = (name, passed, info = '') => { console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${info ? '  ' + info : ''}`); if (!passed) failures++; };
+const browser = await startBrowser({ debugPort, outputDirectory });
+const { send, evaluate, textOf, click, pageErrors } = browser;
+const checks = createChecks();
+const { check } = checks;
+process.on('unhandledRejection', (error) => { console.error('unhandled rejection:', error && error.message); });
 
 try {
   await send('Runtime.enable');
   await send('Page.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: mockSerialScript });
-  await send('Page.navigate', { url: `${baseUrl}/battery.html` });
-  await sleep(600); // Let the page load and open IndexedDB.
 
-  check('database is ready', (await evaluate(`document.getElementById('db-error').hidden`)) === true);
+  // A test that was cut off: a session with no end and 3 samples at 1 A, 10 s apart (20 s of charge).
+  // Do one evaluate per page load where possible. The first page writes the session.
+  await send('Page.navigate', { url: `${baseUrl}/battery.html` });
+  await sleep(1500);
+  await evaluate(`(() => {
+    const request = indexedDB.open('tc66-battery');
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction(['sessions', 'samples'], 'readwrite');
+      const add = transaction.objectStore('sessions').add({ name: 'Cut off', rated_mah: null, nominal_v: null, rated_wh: null,
+        started_at: 1000, ended_at: null, sample_count: 0, mah: 0, wh: 0, note: null });
+      add.onsuccess = () => {
+        for (const t of [1000, 11000, 21000]) transaction.objectStore('samples').add({ session_id: add.result, t, v: 5, a: 1, w: 5 });
+      };
+      transaction.oncomplete = () => database.close();
+    };
+    return true;
+  })()`);
+  await sleep(1000);
+
+  // The next page load closes the cut-off test. Read the results in one evaluate.
+  await send('Page.navigate', { url: `${baseUrl}/battery.html` });
+  await sleep(2000);
+  const recovered = await evaluate(`(() => {
+    const row = [...document.querySelectorAll('#history-body tr')].find((r) => r.cells[0].textContent === 'Cut off');
+    return {
+      databaseReady: document.getElementById('db-error').hidden,
+      duration: row ? row.cells[2].textContent : null,
+      mah: row ? row.cells[3].textContent : null,
+      log: document.getElementById('log').textContent,
+      toast: document.querySelector('.toast-region')?.textContent || '',
+      timer: App.timerKind(),
+    };
+  })()`);
+  check('database is ready', recovered.databaseReady === true);
+  check('a test that was cut off is closed on load', recovered.duration === '0:20' && recovered.mah === '6',
+    `${recovered.duration} ${recovered.mah}`);
+  check('the page tells about the recovered test', /was not finished/.test(recovered.log) && /cut off/.test(recovered.toast));
+  check('polling uses the worker timer', recovered.timer === 'worker');
 
   // Poll at 1 Hz. Set a rated capacity so the efficiency shows.
   await evaluate(`
@@ -149,30 +128,25 @@ try {
   // Record with no reads on the busy page: 3 samples at 2 A, then current drops to 0 and the test auto-stops.
   await sleep(7000);
 
-  // Open a fresh, idle page. It loads the saved session from IndexedDB.
+  // Open a fresh, idle page. It loads the saved sessions from IndexedDB.
+  // This page opens the session view, so it is the last page: leaving it can stall headless Chrome.
   await send('Page.navigate', { url: `${baseUrl}/battery.html` });
   await sleep(2000);
-  // Use a single synchronous evaluate (reliable in headless Chrome). It reads the history row and
-  // opens the session view. viewSession renders asynchronously; a view error shows in the no-errors check.
   const history = await evaluate(`(() => {
     const rows = [...document.querySelectorAll('#history-body tr')];
-    const cells = rows[0] ? [...rows[0].querySelectorAll('td')].map((c) => c.textContent) : [];
-    if (rows[0]) rows[0].querySelector('button').click();
-    return { rows: rows.length, name: cells[0], duration: cells[2], mah: Number(cells[3]), wh: cells[4] };
+    const row = rows.find((r) => r.cells[0].textContent === 'E2E bank');
+    const cells = row ? [...row.querySelectorAll('td')].map((c) => c.textContent) : [];
+    if (row) row.querySelector('button').click();
+    return { rows: rows.length, name: cells[0], duration: cells[2], mah: Number(cells[3]) };
   })()`);
-  check('auto test saved one session', history.rows === 1, `rows=${history.rows}`);
-  check('session keeps its name', history.name === 'E2E bank', history.name);
+  check('auto test saved one session', history.rows === 2 && history.name === 'E2E bank', `rows=${history.rows}`);
   check('session auto-stopped with a duration', !!history.duration && history.duration !== '–', history.duration);
   check('charge is measured and stored', history.mah > 0, `mAh=${history.mah}`);
-  check('saved test persists after reload', history.rows === 1);
 
   await sleep(1200); // Let the async view render. The no-errors check below catches a render failure.
   check('page has no errors', pageErrors.length === 0, pageErrors.join(' | '));
 } finally {
-  socket.close();
-  chrome.kill();
+  browser.close();
   server.close();
 }
-if (failures || process.env.SCREENSHOT) console.log('output:', outputDirectory);
-else { await sleep(500); fs.rmSync(outputDirectory, { recursive: true, force: true }); }
-process.exit(failures ? 1 : 0);
+await finish({ failureCount: checks.failureCount, outputDirectory });
