@@ -18,7 +18,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <body>
 <header>
   <h1><span class="logo" aria-hidden="true">❔</span>Help</h1>
-  <nav class="page-nav"><a href="index.html">Meter</a> · <a href="battery.html">Battery test</a> · <span aria-current="page">Help</span></nav>
+  <nav class="page-nav"><a href="index.html">Meter</a> · <a href="battery.html">Battery test</a> · <a href="dps.html">Power supply</a> · <span aria-current="page">Help</span></nav>
   <div class="row header-actions">
     <button class="icon-button" id="theme-toggle" data-theme-toggle type="button" aria-label="Theme: auto">
       <svg class="icon-auto" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" /></svg>
@@ -39,6 +39,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <ul>
       <li><strong>Meter page</strong> shows live voltage, current, power and more, with charts.</li>
       <li><strong>Battery test page</strong> records a discharge and computes the capacity of a power bank.</li>
+      <li><strong>Power supply page</strong> controls an RDTech DPS3005 power supply over USB or Bluetooth. See <a href="#dps">Power supply</a>.</li>
       <li>The app is a Progressive Web App (PWA). You can install it and use it offline.</li>
     </ul>
   </section>
@@ -163,6 +164,42 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <p>The <strong>Remaining (est.)</strong> tile uses the rated energy. It does not include the losses, so the real time is shorter.</p>
   </section>
 
+  <section id="dps" aria-labelledby="dps-heading">
+    <h2 id="dps-heading">Power supply (DPS3005)</h2>
+    <p>
+      The <a href="dps.html">Power supply page</a> controls an <strong>RDTech DPS3005</strong> programmable power supply.
+      The supply uses the Modbus RTU protocol. Other DPS models can work, but their scaling is not confirmed.
+    </p>
+    <p><strong>Connect over Bluetooth (Windows)</strong></p>
+    <ol>
+      <li>Switch on the supply. Close the phone app, because the Bluetooth module accepts only one connection.</li>
+      <li>Open <strong>Settings → Bluetooth &amp; devices → Add device → Bluetooth</strong>.</li>
+      <li>Select the supply, for example "DPS3005_001". Enter the PIN, usually <code>1234</code>.</li>
+      <li>Windows adds two Bluetooth COM ports. The page uses the <strong>outgoing</strong> port.</li>
+      <li>On the Power supply page, click <strong>Connect</strong> and select the Bluetooth port or the RFCOMM entry.</li>
+    </ol>
+    <p>
+      Newer Chrome versions can also open the Bluetooth serial service directly. Set <strong>Ports</strong> to
+      "Bluetooth (RFCOMM) only" to show only these entries.
+    </p>
+    <p><strong>Connect over USB</strong>: connect the USB communication module to the supply, then select its COM port.</p>
+    <p>
+      The default settings are 9600 baud and slave address 1.
+      If you changed them on the supply, set the same values on the page before you connect.
+    </p>
+    <p><strong>What the page shows</strong></p>
+    <ul>
+      <li><strong>CV</strong> (constant voltage): the supply holds the output voltage at U-SET.</li>
+      <li><strong>CC</strong> (constant current): the load wants more than I-SET, so the supply lowers the voltage and holds the current at I-SET.</li>
+      <li><strong>Protection</strong>: OVP (over voltage), OCP (over current) or OPP (over power) switched the output off.
+        Remove the cause, then switch the output on again.</li>
+      <li><strong>Keys locked</strong>: the buttons on the supply do not work until you unlock them.</li>
+      <li><strong>Memory groups M0–M9</strong>: stored sets of U, I and protection limits. Recall loads one group.
+        M0 is the group that the supply loads at power on.</li>
+    </ul>
+    <p>The page sends one request at a time. If the supply does not answer 3 times in a row, the page disconnects.</p>
+  </section>
+
   <section aria-labelledby="links-heading">
     <h2 id="links-heading">Links and references</h2>
     <ul class="link-list">
@@ -170,6 +207,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <li><a href="https://sigrok.org/wiki/RDTech_TC66C" target="_blank" rel="noopener">sigrok wiki: RDTech TC66C protocol</a></li>
       <li><a href="https://lygte-info.dk/review/USBmeter%20RD%20Tech%20USB%20Meter%20TC66C%20UK.html" target="_blank" rel="noopener">lygte-info: TC66C review</a></li>
       <li><a href="https://pypi.org/project/tc66-serial/" target="_blank" rel="noopener">tc66-serial: a Python library for the meter</a></li>
+      <li><a href="https://github.com/lambcutlet/DPS5005_pyGUI" target="_blank" rel="noopener">DPS5005_pyGUI: Modbus register map for the DPS family</a></li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API" target="_blank" rel="noopener">MDN: Web Serial API</a></li>
     </ul>
   </section>
