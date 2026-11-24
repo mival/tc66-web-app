@@ -39,7 +39,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <ul>
       <li><strong>Meter page</strong> shows live voltage, current, power and more, with charts.</li>
       <li><strong>Battery test page</strong> records a discharge and computes the capacity of a power bank.</li>
-      <li><strong>Power supply page</strong> controls an RDTech DPS3005 power supply over USB or Bluetooth. See <a href="#dps">Power supply</a>.</li>
+      <li><strong>Power supply page</strong> controls an RDTech DPS3005 power supply over USB or Bluetooth. See <a href="#dps">Power supply</a>
+        and <a href="#dps-buttons">the buttons on the supply</a>.</li>
       <li>The app is a Progressive Web App (PWA). You can install it and use it offline.</li>
     </ul>
   </section>
@@ -203,6 +204,78 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     <p>The page sends one request at a time. If the supply does not answer 3 times in a row, the page disconnects.</p>
   </section>
 
+  <section id="dps-buttons" aria-labelledby="dps-buttons-heading">
+    <h2 id="dps-buttons-heading">Power supply: use the buttons on the supply</h2>
+    <p>
+      This is a short manual for the front panel of the DPS3005. It comes from the RuiDeng manual
+      for the DPS3003/3005/5005/8005 (version 2019-3-15).
+      The manual shows some keys only as pictures. Steps with a <span class="unconfirmed">*</span> are not checked on a supply yet.
+    </p>
+
+    <p><strong>Controls</strong></p>
+    <table class="eff-table">
+      <thead><tr><th>Control</th><th>Short press</th><th>Hold for 2 s</th></tr></thead>
+      <tbody>
+        <tr><td>▲ (V)</td><td>Set the voltage. In a menu: go up.</td><td>Recall memory group M1.</td></tr>
+        <tr><td>SET</td><td>Open the data setting menu.</td><td>Select a memory group to recall (M1–M9).</td></tr>
+        <tr><td>▼ (I)</td><td>Set the current limit. In a menu: go down.</td><td>Recall memory group M2.</td></tr>
+        <tr><td>Knob</td><td>Turn: change the value. Press: move the cursor to the next digit.</td><td>Lock or unlock the keys.</td></tr>
+        <tr><td>ON/OFF</td><td>Switch the output on or off.</td><td>–</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Set the voltage or the current limit</strong></p>
+    <ol>
+      <li>Press ▲ (V) for the voltage, or ▼ (I) for the current limit.</li>
+      <li>Press the knob until the cursor is on the digit that you want to change.</li>
+      <li>Turn the knob. Clockwise increases the value.</li>
+      <li>Press SET to save and exit.<span class="unconfirmed">*</span> After 1 minute with no input, the supply leaves the setting by itself.</li>
+    </ol>
+
+    <p><strong>Set the over-current protection (OCP)</strong></p>
+    <ol>
+      <li>Press SET. The data setting menu opens.</li>
+      <li>Press ▲ or ▼ until <strong>S-OCP</strong> is selected.</li>
+      <li>Press the knob to put the cursor on a digit. Turn the knob to change it.</li>
+      <li>Press SET to exit.<span class="unconfirmed">*</span></li>
+    </ol>
+    <p>
+      Use the same steps for <strong>S-OVP</strong> (over-voltage, in V) and <strong>S-OPP</strong> (over-power, in W).
+      Set OCP a little above the current that your load needs. Set OVP a little above U-SET.
+      If a value goes above its limit, the supply switches the output off and shows OVP, OCP or OPP.
+      The output also switches off when the power board is hotter than 80 °C.
+      Remove the cause, then press ON/OFF to switch the output on again.
+    </p>
+    <p>
+      The protection values belong to the active memory group.
+      Every change on the supply also writes the new values into M0, the group that the supply loads at power on.
+    </p>
+
+    <p><strong>Memory groups M0–M9</strong></p>
+    <ul>
+      <li><strong>Quick recall:</strong> hold ▲ for 2 s to load M1. Hold ▼ for 2 s to load M2.</li>
+      <li><strong>Recall any group:</strong> hold SET for 2 s. Turn the knob to M1–M9. Press SET to load the group.</li>
+      <li><strong>Save values into a group:</strong> in the data setting menu, select the group number with the knob.
+        Press SET, then use ▲ ▼ and the knob to set U-SET, I-SET, S-OVP, S-OCP, S-OPP and the other values.
+        Hold SET for 2 s to save the group.<span class="unconfirmed">*</span> Press SET to exit.</li>
+      <li><strong>M-PRE:</strong> ON keeps the output state when you recall the group. OFF switches the output off when you recall the group.</li>
+      <li><strong>Output on start</strong> (S-INI): ON switches the output on when the supply starts. Use it with care.</li>
+    </ul>
+
+    <p><strong>Other settings</strong></p>
+    <ul>
+      <li><strong>Key lock:</strong> hold the knob for 2 s. A lock symbol shows on the right side of the screen. Hold the knob again for 2 s to unlock.
+        ON/OFF does not work while the keys are locked.</li>
+      <li><strong>Brightness:</strong> in the data setting menu, select <strong>B-LED</strong>. Turn the knob: 0 is the darkest, 5 is the brightest.</li>
+      <li><strong>Communication settings:</strong> hold ▲ while you switch on the supply.
+        Use ▲ ▼ to select COMM (on or off), ADDR (slave address, default 001), BAUD (2400–19200, default 9600) or BPIN (Bluetooth PIN, default 1234).
+        Press the knob to change a value. Press SET two times to save and exit.<span class="unconfirmed">*</span>
+        Disconnect Bluetooth before you change these settings.</li>
+      <li><strong>Input voltage:</strong> the input must be at least 1.1 times the output voltage. For 12 V out, use 13.2 V or more in.
+        The DPS3005 accepts 6–40 V in and gives 0–32 V and 0–5 A out, up to 160 W.</li>
+    </ul>
+  </section>
+
   <section aria-labelledby="links-heading">
     <h2 id="links-heading">Links and references</h2>
     <ul class="link-list">
@@ -210,6 +283,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <li><a href="https://sigrok.org/wiki/RDTech_TC66C" target="_blank" rel="noopener">sigrok wiki: RDTech TC66C protocol</a></li>
       <li><a href="https://lygte-info.dk/review/USBmeter%20RD%20Tech%20USB%20Meter%20TC66C%20UK.html" target="_blank" rel="noopener">lygte-info: TC66C review</a></li>
       <li><a href="https://pypi.org/project/tc66-serial/" target="_blank" rel="noopener">tc66-serial: a Python library for the meter</a></li>
+      <li><a href="https://www.rcscomponents.kiev.ua/datasheets/Model_DPS3003_DPS3005_DPS5005_DPS8005.pdf" target="_blank" rel="noopener">RuiDeng manual for DPS3003/3005/5005/8005 (PDF)</a></li>
       <li><a href="https://github.com/lambcutlet/DPS5005_pyGUI" target="_blank" rel="noopener">DPS5005_pyGUI: Modbus register map for the DPS family</a></li>
       <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API" target="_blank" rel="noopener">MDN: Web Serial API</a></li>
     </ul>

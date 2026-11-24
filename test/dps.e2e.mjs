@@ -311,7 +311,7 @@ try {
   check('recall loads the group into the settings', (await textOf('value-voltage-set')) === '3.00' && (await textOf('value-current-set')) === '0.300');
   check('recall copies the values into the form', await evaluate(`document.getElementById('set-voltage').value`) === '3.00');
 
-  await typeValue('set-voltage', '31');
+  await typeValue('set-voltage', '33');
   await sleep(300);
   check('a voltage over the range is not sent', (await registers())[0] === 300 &&
     await evaluate(`document.getElementById('set-voltage').getAttribute('aria-invalid')`) === 'true' &&

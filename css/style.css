@@ -919,3 +919,4 @@ label:has(input:user-invalid) .field-error, .field-error.shown { display: block;
 .chart-controls { display: grid; gap: 10px; }
 .auto-row { margin-top: 10px; }
 .auto-row + .row { margin-top: 12px; }
+.unconfirmed { color: var(--color-warning); font-weight: 700; margin-inline-start: 2px; }

@@ -298,13 +298,13 @@ test('DPSPort saves U and I into a memory group and keeps its other fields', asy
   assert.equal(port.writes[0], hex(DPS.buildWriteMultipleRequest(1, 0x70, [1234, 1500])));
   assert.deepEqual(registers.slice(0x70, 0x78), [1234, 1500, 400, 400, 300, 4, 0, 1]);
   await assert.rejects(() => port.savePresetSetpoints(10, 1, 1), RangeError);
-  await assert.rejects(() => port.savePresetSetpoints(1, 31, 1), /0-30 V/);
+  await assert.rejects(() => port.savePresetSetpoints(1, 33, 1), /0-32 V/);
   assert.equal(port.writes.length, 1);
 });
 
 test('DPSPort rejects a set value outside the model range before it sends', async () => {
   const port = makeFakePort(emulator([]));
-  await assert.rejects(() => port.setVoltage(31), /0-30 V/);
+  await assert.rejects(() => port.setVoltage(33), /0-32 V/);
   await assert.rejects(() => port.setCurrent(5.5), /0-5 A/);
   await assert.rejects(() => port.setVoltageAndCurrent(5, -1), /0-5 A/);
   await assert.rejects(() => port.setBrightness(6), /0-5/);

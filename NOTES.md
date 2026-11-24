@@ -146,6 +146,11 @@ It was not paired with the Windows laptop at the time of writing. WSL cannot pai
 Memory group fields: U-SET (V/100), I-SET (A/1000), S-OVP (V/100), S-OCP (A/1000), S-OPP (W/10), B-LED, M-PRE, S-INI
 (output state at power on). M0 is the group that the supply loads at power on.
 
+Ranges (RuiDeng manual, version 2019-3-15): DPS3005 input 6-40 V, output 0-32.00 V, 0-5.000 A, 160 W.
+The input must be at least 1.1 times the output voltage. Hold ▲ at power on to open the communication settings
+(COMM, ADDR, BAUD, BPIN). Manual: <https://www.rcscomponents.kiev.ua/datasheets/Model_DPS3003_DPS3005_DPS5005_DPS8005.pdf>.
+The manual shows some keys as pictures. `help.html#dps-buttons` marks the steps that are not checked on a supply.
+
 Sources: [DPS5005_pyGUI](https://github.com/lambcutlet/DPS5005_pyGUI) (`dps_modbus.py`, `dps5005_limits.ini`) for the
 DPS5005, which has the same registers and scaling as the DPS3005.
 

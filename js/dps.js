@@ -208,12 +208,13 @@
   const MAX_BRIGHTNESS = 5;
 
   // Scaling per model: the number of decimals in each register.
+  // The ranges come from the RuiDeng manual for DPS3003/3005/5005/8005 (version 2019-3-15).
   // DPS3005 and DPS5005 agree with public register tables (DPS5005_pyGUI).
   // The other models are not confirmed. Their current and power need fewer decimals to fit into 16 bits.
   const MODELS = {
-    3005: { name: 'DPS3005', maxVoltage: 30, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
+    3005: { name: 'DPS3005', maxVoltage: 32, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
     5005: { name: 'DPS5005', maxVoltage: 50, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: true },
-    8005: { name: 'DPS8005', maxVoltage: 80, maxCurrent: 5, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: false },
+    8005: { name: 'DPS8005', maxVoltage: 80, maxCurrent: 5.1, voltageDecimals: 2, currentDecimals: 3, powerDecimals: 2, confirmed: false },
     5015: { name: 'DPS5015', maxVoltage: 50, maxCurrent: 15, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
     5020: { name: 'DPS5020', maxVoltage: 50, maxCurrent: 20, voltageDecimals: 2, currentDecimals: 2, powerDecimals: 1, confirmed: false },
   };
