@@ -666,6 +666,9 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   color: var(--color-accent);
 }
 
+/* Header button that switches between English and Czech (js/i18n.js). */
+.lang-button { font-size: 0.85rem; padding-inline: 10px; }
+
 /* Power supply page */
 .readout.input { --tint: var(--color-input); }
 .dps-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }

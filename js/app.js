@@ -3,6 +3,8 @@
   'use strict';
 
   const element = (id) => document.getElementById(id);
+  // Translate a text for a dialog. Without js/i18n.js, the text stays English.
+  const t = (text) => (globalThis.I18n ? globalThis.I18n.t(text) : text);
   const sleep = App.sleep;
   const MAX_SAMPLE_COUNT = 200000;
   const MAX_FAILED_POLLS = 3;
@@ -446,7 +448,7 @@
     if (!connection) return;
     const command = element('raw-command').value;
     if (!command) return;
-    if (/update/i.test(command) && !confirm('"update" puts the meter into the bootloader for a firmware update. Send it?')) return;
+    if (/update/i.test(command) && !confirm(t('"update" puts the meter into the bootloader for a firmware update. Send it?'))) return;
     const activeConnection = connection;
     const output = element('raw-output');
     element('raw-send').disabled = true;
@@ -544,8 +546,12 @@
   async function flashFirmware() {
     if (!connection || flashing || deviceMode !== 'boot' || !firmware) return;
     if (!firmware.isOfficial) {
-      const message = `This file does not match the official firmware.\n\nName: ${firmware.name}\nSize: ${firmware.bytes.length} bytes\n` +
-        `SHA-256: ${firmware.sha256}\n\nFlashing a wrong image can permanently brick the meter. Continue?`;
+      // Each line is translated alone, so the line breaks stay.
+      const message = [
+        t('This file does not match the official firmware.'), '',
+        t(`Name: ${firmware.name}`), t(`Size: ${firmware.bytes.length} bytes`), `SHA-256: ${firmware.sha256}`, '',
+        t('Flashing a wrong image can permanently brick the meter. Continue?'),
+      ].join('\n');
       if (!confirm(message)) return;
     }
     const activeConnection = connection;

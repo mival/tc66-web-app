@@ -191,6 +191,21 @@ DPS5005, which has the same registers and scaling as the DPS3005.
 - **Charts.** All pages use `js/uchart.js` (uPlot). `setWindow()` draws only the visible window (binary search),
   reduced to about 2000 points with the low and high point of each bucket. A drag zoom stays until a double click.
 
+### Languages
+
+- The pages are written in English. `js/i18n.js` translates them to Czech when the browser language is Czech,
+  or when the user chose Czech with the header button (`localStorage` key `lang`).
+- It translates text nodes and the attributes `aria-label`, `title`, `placeholder`, `alt` and `aria-valuetext`.
+  A MutationObserver translates the texts that the scripts set later (status, toasts, badges).
+- `js/i18n-cs.js` has three parts: `exact` (whole texts), `patterns` (texts with values, for example
+  `Reconnecting ({a}/{b})…`) and `html` (sentences with inline markup, for elements with `data-i18n-html`).
+  The most specific pattern wins. A value in a pattern is translated too.
+- `confirm()` and `prompt()` texts go through `I18n.t()` in the page scripts, because the observer cannot see dialogs.
+- The log (`#log`) and `pre` elements stay English. They are technical output.
+- The help page has a full Czech copy, `help.cs.html`. `js/i18n.js` opens the page of the chosen language.
+- A new English text in a page needs a Czech entry in `js/i18n-cs.js`. Without an entry, the text stays English.
+- `test/dps.e2e.mjs` checks the language switch, a static text, a status, a badge and a pattern in Czech.
+
 ### Headless Chrome limits in the tests
 
 - A page that DevTools controls gets no animation frames in headless Chrome, so `requestAnimationFrame` never fires.

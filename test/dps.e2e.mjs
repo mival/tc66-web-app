@@ -422,6 +422,30 @@ try {
     await textOf('status-text'));
   check('the port closes after the failed connect', await evaluate('window.__dps.closed === true') && !(await evaluate(`document.getElementById('connect').disabled`)));
 
+  // ---- Czech ----
+  await navigate(); // A normal supply again. The language button reloads this address.
+  check('the page is English by default, with a button for Czech', await evaluate('document.documentElement.lang') === 'en' &&
+    (await evaluate(`document.querySelector('.lang-button').textContent`)) === 'Česky');
+  await click('.lang-button'); // Stores the choice and loads the page again.
+  await sleep(1000);
+  check('the Czech page translates the static texts', await evaluate('document.documentElement.lang') === 'cs' &&
+    (await textOf('connect')) === 'Připojit' && (await textOf('live-heading')) === 'Živě' &&
+    (await evaluate(`document.querySelector('.lang-button').textContent`)) === 'English',
+    `${await textOf('connect')} | ${await textOf('live-heading')}`);
+  await click('#connect');
+  await sleep(1200);
+  check('the Czech page translates the status and the badges', (await textOf('status-text')) === 'Připojeno' &&
+    (await textOf('badge-output')) === 'Výstup VYP' && (await textOf('badge-lock')) === 'Klávesy volné',
+    `${await textOf('status-text')} | ${await textOf('badge-output')}`);
+  check('the Czech page translates a pattern text', (await evaluate(`document.querySelector('[data-edit="3"]').getAttribute('aria-label')`)) === 'Upravit M3');
+  check('the technical log stays English', /Port open/.test(await textOf('log')));
+  check('the help link goes to the Czech help', /help\.cs\.html/.test(await evaluate(`document.querySelector('.page-nav a[href*="help"]').getAttribute('href')`)));
+  await click('#disconnect');
+  await sleep(400);
+  await click('.lang-button'); // Back to English for later runs.
+  await sleep(1000);
+  check('the language button switches back to English', await evaluate('document.documentElement.lang') === 'en' && (await textOf('connect')) === 'Connect');
+
   check('page has no errors', pageErrors.length === 0, pageErrors.join(' | '));
 } finally {
   browser.close();

@@ -149,8 +149,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <div class="warn-box" role="alert">
         <strong>Warning.</strong> A firmware update can make the meter unusable (a "brick").
         <ul>
-          <li>Flash <strong>only</strong> an official TC66 firmware image. A wrong file can destroy the meter.</li>
-          <li>Do <strong>not</strong> unplug the meter during the update.</li>
+          <li data-i18n-html="firmware-only-official">Flash <strong>only</strong> an official TC66 firmware image. A wrong file can destroy the meter.</li>
+          <li data-i18n-html="firmware-do-not-unplug">Do <strong>not</strong> unplug the meter during the update.</li>
           <li>Use a direct USB port. Do not use a hub.</li>
         </ul>
       </div>
@@ -158,10 +158,10 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
       <h3>Step 1 — Enter bootloader mode</h3>
       <ol class="steps">
         <li>Disconnect the meter.</li>
-        <li>Press and hold the <strong>K1</strong> button.</li>
+        <li data-i18n-html="boot-hold-k1">Press and hold the <strong>K1</strong> button.</li>
         <li>Connect the meter while you hold K1.</li>
         <li>Release K1.</li>
-        <li>Click <strong>Connect</strong> at the top, then <strong>Check mode</strong> below.</li>
+        <li data-i18n-html="boot-click-connect">Click <strong>Connect</strong> at the top, then <strong>Check mode</strong> below.</li>
       </ol>
       <div class="row">
         <button id="check-mode" disabled>Check mode</button>
@@ -190,7 +190,7 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   <section aria-labelledby="raw-heading">
     <details>
       <summary id="raw-heading">Advanced: raw command</summary>
-      <p class="hint">Sends ASCII text with no terminator, then shows all bytes until 0.5 s of silence. <b>update</b> puts the meter into the bootloader.</p>
+      <p class="hint" data-i18n-html="raw-hint">Sends ASCII text with no terminator, then shows all bytes until 0.5 s of silence. <b>update</b> puts the meter into the bootloader.</p>
       <form class="row" id="raw-form">
         <input id="raw-command" placeholder="e.g. query" autocomplete="off" spellcheck="false" maxlength="64">
         <button id="raw-send" type="submit" disabled>Send</button>
@@ -210,6 +210,8 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   <span class="app-update-message" data-app-update-message role="status" hidden></span>
 </footer>
 <script src="js/version.js"></script>
+<script src="js/i18n-cs.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/tc66.js"></script>
 <script src="js/vendor/uplot/uPlot.iife.min.js"></script>

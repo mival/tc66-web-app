@@ -3,6 +3,8 @@
   'use strict';
 
   const element = (id) => document.getElementById(id);
+  // Translate a text for a dialog. Without js/i18n.js, the text stays English.
+  const t = (text) => (globalThis.I18n ? globalThis.I18n.t(text) : text);
   const sleep = App.sleep; // A worker timer: polling keeps its rate in a hidden tab.
   const LIVE_BUFFER_LIMIT = 4000; // Samples kept for the idle live charts.
   const DB_FLUSH_INTERVAL_MS = 15000; // Write buffered samples to the database at most this often.
@@ -575,7 +577,7 @@
     element('import-db').addEventListener('change', async (event) => {
       const file = event.target.files[0];
       if (!file || !db) return;
-      if (!confirm('Import replaces all saved tests. Export first if you want a backup. Continue?')) {
+      if (!confirm(t('Import replaces all saved tests. Export first if you want a backup. Continue?'))) {
         event.target.value = '';
         return;
       }
@@ -595,12 +597,12 @@
     element('rename-session').addEventListener('click', async () => {
       if (!db || selectedSessionId == null) return;
       const session = (await db.listSessions()).find((s) => s.id === selectedSessionId);
-      const name = prompt('New name for the test:', session ? session.name : '');
+      const name = prompt(t('New name for the test:'), session ? session.name : '');
       if (name) { await db.renameSession(selectedSessionId, name.trim()); await viewSession(selectedSessionId); }
     });
     element('delete-session').addEventListener('click', async () => {
       if (!db || selectedSessionId == null) return;
-      if (!confirm('Delete this test and its samples? This cannot be undone.')) return;
+      if (!confirm(t('Delete this test and its samples? This cannot be undone.'))) return;
       await db.deleteSession(selectedSessionId);
       addLogLine(`Test ${selectedSessionId} deleted.`);
       selectedSessionId = null;

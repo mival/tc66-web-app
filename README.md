@@ -18,6 +18,7 @@ Online version: <https://mival.github.io/tc66-web-app/>. You can also open `inde
 - A Progressive Web App (PWA). You can install it and use it offline.
 - A version badge in the footer. The app checks for a new version and shows a reload banner.
 - An "Install" button in the header when the browser can install the app.
+- English and Czech. The app uses Czech when the browser language is Czech. The header button changes the language.
 
 On all device pages:
 
@@ -98,11 +99,14 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `js/dps.js` | Modbus RTU frames and CRC, DPS register decoding, serial transport with a request queue, poller |
 | `js/dps-app.js` | Power supply page logic |
 | `js/theme.js` | Color scheme toggle (auto, light, dark) |
+| `js/i18n.js` | Language choice and page translation (English, Czech) |
+| `js/i18n-cs.js` | Czech texts: whole texts, texts with values, sentences with markup |
 | `js/pwa.js` | Service worker registration |
 | `js/version.js` | Build version, set by the deploy workflow |
 | `js/update.js` | Version badge, version check and update banner |
 | `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
+| `help.cs.html` | Czech help page. Keep it in step with `help.html`. |
 | `img/` | Photos of the TC66C and the DPS front panel (help page) |
 | `test/` | Unit tests, end-to-end tests, meter fixtures, Modbus fixture frames |
 | `test/lib/browser.mjs` | Shared end-to-end test code: Chrome, DevTools calls, checks, static server |
