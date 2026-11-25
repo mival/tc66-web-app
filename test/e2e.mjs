@@ -94,6 +94,11 @@ try {
   await sleep(500);
 
   // Theme toggle cycles auto -> light -> dark -> auto and sets the meta element.
+  // Wait until the page has started (Theme.init sets data-state). A slow machine, such as CI, needs more time.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    if (await evaluate(`document.getElementById('theme-toggle').dataset.state || ''`)) break;
+    await sleep(100);
+  }
   const themeStart = await evaluate(`document.getElementById('theme-toggle').dataset.state`);
   await click('#theme-toggle');
   const themeLight = await evaluate(`document.getElementById('theme-toggle').dataset.state + '|' + document.querySelector('meta[name="color-scheme"]').content`);
