@@ -1067,8 +1067,7 @@ dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
   box-shadow: var(--shadow);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.tool-card > img,
-.tool-card > .tool-card-art {
+.tool-card > img {
   width: 100%;
   height: auto;
   aspect-ratio: 4 / 3;
@@ -1076,16 +1075,11 @@ dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 }
 /* One card for each row on a phone: a wide, short image keeps the cards small. */
 @media (max-width: 560px) {
-  .tool-card > img,
-  .tool-card > .tool-card-art { aspect-ratio: 2 / 1; }
+  .tool-card > img { aspect-ratio: 2 / 1; }
 }
 .tool-card > img { object-fit: contain; background: #fff; }
-.tool-card > .tool-card-art {
-  padding: 12%;
-  box-sizing: border-box;
-  color: var(--tint);
-  background: color-mix(in srgb, var(--tint) 10%, var(--color-panel));
-}
+/* A photo with its own background fills the whole image area. */
+.tool-card > img.cover { object-fit: cover; }
 .tool-card h2 { margin: 4px 0 0; font-size: 1.15rem; }
 .tool-card p { margin: 0; color: var(--color-muted); line-height: 1.5; font-size: 0.95rem; }
 .tool-card a.card-link { color: var(--color-text); text-decoration: none; }

@@ -39,6 +39,7 @@ const APP_SHELL = [
   'icon.svg',
   'img/tc66c.jpg',
   'img/dps.jpg',
+  'img/battery.jpg',
 ];
 
 // Download every file from the server. "reload" skips the HTTP cache of the browser.
