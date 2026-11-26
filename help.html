@@ -48,41 +48,27 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 
   <section aria-labelledby="device-heading">
     <h2 id="device-heading">The device</h2>
-    <div class="device-media">
-      <figure class="device-figure">
-        <svg viewBox="0 0 320 170" role="img" aria-labelledby="device-svg-title">
-          <title id="device-svg-title">Drawing of the TC66C USB-C meter</title>
-          <!-- Left USB-C plug -->
-          <rect x="8" y="72" width="34" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
-          <rect x="34" y="78" width="22" height="14" rx="7" fill="var(--color-muted)" opacity="0.6" />
-          <!-- Body -->
-          <rect x="52" y="24" width="216" height="122" rx="16"
-                fill="var(--color-panel)" stroke="var(--color-border)" stroke-width="2" />
-          <!-- Right USB-C port (recessed) -->
-          <rect x="268" y="72" width="30" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
-          <rect x="276" y="79" width="18" height="12" rx="6" fill="#0c0f14" />
-          <!-- Screen -->
-          <rect x="70" y="40" width="180" height="90" rx="10" fill="#0c0f14" stroke="var(--color-border)" stroke-width="1" />
-          <!-- Screen content -->
-          <text x="84" y="70" fill="#e8edf3" font-family="monospace" font-size="24" font-weight="700">5.02</text>
-          <text x="150" y="70" fill="#9aa4b0" font-family="monospace" font-size="14">V</text>
-          <text x="84" y="96" fill="#e8edf3" font-family="monospace" font-size="18">1.48</text>
-          <text x="134" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">A</text>
-          <text x="172" y="96" fill="#e8edf3" font-family="monospace" font-size="18">7.43</text>
-          <text x="222" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">W</text>
-          <circle cx="86" cy="116" r="5" fill="var(--color-voltage)" />
-          <circle cx="104" cy="116" r="5" fill="var(--color-current)" />
-          <circle cx="122" cy="116" r="5" fill="var(--color-power)" />
-          <rect x="150" y="111" width="86" height="10" rx="5" fill="var(--color-muted)" opacity="0.4" />
-        </svg>
-        <figcaption>A stylized TC66C. It has a USB-C plug and a USB-C port, with a color screen.</figcaption>
-      </figure>
-
+    <div class="device-info">
       <figure class="photo-slot">
         <img src="img/tc66c.jpg" alt="Photo of the TC66C meter with its USB-C plug and color screen" class="photo-img"
              width="1080" height="1080" decoding="async">
         <figcaption>The RDTech TC66C. The screen shows voltage, current, temperature, D+ and D−.</figcaption>
       </figure>
+      <div>
+        <p>The <strong>RDTech TC66C</strong> is a small USB-C meter. Put it between a charger and a device.
+          It measures the power that goes through it.</p>
+        <dl class="spec-list">
+          <dt>Connectors</dt><dd>USB-C plug and USB-C port</dd>
+          <dt>Working voltage</dt><dd>3.5–24 V</dd>
+          <dt>Current</dt><dd>0–5 A</dd>
+          <dt>Resolution</dt><dd>0.1 mV, 0.01 mA</dd>
+          <dt>Values</dt><dd>Voltage, current, power, load resistance, temperature, D+ and D−</dd>
+          <dt>Counters</dt><dd>Two groups of charge (mAh) and energy (mWh)</dd>
+          <dt>Recording</dt><dd>Offline recording in the meter. The app downloads it.</dd>
+          <dt>Computer link</dt><dd>USB serial port "GD32 Virtual Com Port", 115200 baud</dd>
+        </dl>
+        <p class="hint">Values from the RDTech manual. Check the manual of your meter for the accuracy.</p>
+      </div>
     </div>
   </section>
 

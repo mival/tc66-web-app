@@ -49,41 +49,32 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 
   <section aria-labelledby="device-heading">
     <h2 id="device-heading">Zařízení</h2>
-    <div class="device-media">
-      <figure class="device-figure">
-        <svg viewBox="0 0 320 170" role="img" aria-labelledby="device-svg-title">
-          <title id="device-svg-title">Kresba měřiče TC66C pro USB-C</title>
-          <rect x="8" y="72" width="34" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
-          <rect x="34" y="78" width="22" height="14" rx="7" fill="var(--color-muted)" opacity="0.6" />
-          <rect x="52" y="24" width="216" height="122" rx="16"
-                fill="var(--color-panel)" stroke="var(--color-border)" stroke-width="2" />
-          <rect x="268" y="72" width="30" height="26" rx="8" fill="var(--color-muted)" opacity="0.45" />
-          <rect x="276" y="79" width="18" height="12" rx="6" fill="#0c0f14" />
-          <rect x="70" y="40" width="180" height="90" rx="10" fill="#0c0f14" stroke="var(--color-border)" stroke-width="1" />
-          <text x="84" y="70" fill="#e8edf3" font-family="monospace" font-size="24" font-weight="700">5.02</text>
-          <text x="150" y="70" fill="#9aa4b0" font-family="monospace" font-size="14">V</text>
-          <text x="84" y="96" fill="#e8edf3" font-family="monospace" font-size="18">1.48</text>
-          <text x="134" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">A</text>
-          <text x="172" y="96" fill="#e8edf3" font-family="monospace" font-size="18">7.43</text>
-          <text x="222" y="96" fill="#9aa4b0" font-family="monospace" font-size="12">W</text>
-          <circle cx="86" cy="116" r="5" fill="var(--color-voltage)" />
-          <circle cx="104" cy="116" r="5" fill="var(--color-current)" />
-          <circle cx="122" cy="116" r="5" fill="var(--color-power)" />
-          <rect x="150" y="111" width="86" height="10" rx="5" fill="var(--color-muted)" opacity="0.4" />
-        </svg>
-        <figcaption>Stylizovaný TC66C. Má zástrčku USB-C, zásuvku USB-C a barevný displej.</figcaption>
-      </figure>
-
+    <div class="device-info">
       <figure class="photo-slot">
         <img src="img/tc66c.jpg" alt="Fotografie měřiče TC66C se zástrčkou USB-C a barevným displejem" class="photo-img"
              width="1080" height="1080" decoding="async">
         <figcaption>RDTech TC66C. Displej ukazuje napětí, proud, teplotu, D+ a D−.</figcaption>
       </figure>
+      <div>
+        <p><strong>RDTech TC66C</strong> je malý USB-C měřič. Zapojte ho mezi nabíječku a zařízení.
+          Měří výkon, který jím prochází.</p>
+        <dl class="spec-list">
+          <dt>Konektory</dt><dd>Zástrčka USB-C a zásuvka USB-C</dd>
+          <dt>Pracovní napětí</dt><dd>3,5–24 V</dd>
+          <dt>Proud</dt><dd>0–5 A</dd>
+          <dt>Rozlišení</dt><dd>0,1 mV, 0,01 mA</dd>
+          <dt>Hodnoty</dt><dd>Napětí, proud, výkon, odpor zátěže, teplota, D+ a D−</dd>
+          <dt>Čítače</dt><dd>Dvě skupiny náboje (mAh) a energie (mWh)</dd>
+          <dt>Záznam</dt><dd>Offline záznam v měřiči. Aplikace ho stáhne.</dd>
+          <dt>Spojení s počítačem</dt><dd>Sériový port USB „GD32 Virtual Com Port“, 115200 Bd</dd>
+        </dl>
+        <p class="hint">Hodnoty z manuálu RDTech. Přesnost najdete v manuálu vašeho měřiče.</p>
+      </div>
     </div>
   </section>
 
   <section aria-labelledby="start-heading">
-    <h2 id="start-heading">Rychlý začátek</h2>
+    <h2 id="start-heading">Quick start</h2>
     <ol>
       <li>Připojte měřič k počítači kabelem USB.</li>
       <li>Otevřete aplikaci v Chrome nebo Edge (nebo ve Firefoxu 151+).</li>

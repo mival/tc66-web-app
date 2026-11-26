@@ -586,13 +586,14 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   background: color-mix(in srgb, var(--color-muted) 14%, transparent);
 }
 
-.device-media {
+.device-info {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px 24px;
+  align-items: start;
   margin-top: 10px;
 }
-.device-figure,
+.device-info > div > p:first-child { margin-top: 0; }
 .photo-slot {
   margin: 0;
   border: 1px solid var(--color-border);
@@ -601,13 +602,22 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
   padding: 14px;
   text-align: center;
 }
-.device-figure svg { width: 100%; height: auto; }
-.device-figure figcaption,
 .photo-slot figcaption {
   margin-top: 10px;
   font-size: 0.8rem;
   color: var(--color-muted);
 }
+
+/* Device specs: a term column and a value column. */
+.spec-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 12px 0;
+  font-size: 0.92rem;
+}
+.spec-list dt { color: var(--color-muted); }
+.spec-list dd { margin: 0; }
 
 .photo-slot { display: flex; flex-direction: column; }
 .photo-img { width: 100%; height: auto; border-radius: 8px; background: #fff; }
