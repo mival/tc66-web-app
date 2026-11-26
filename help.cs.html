@@ -30,264 +30,295 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   </div>
 </header>
 <main class="prose">
-  <section aria-labelledby="about-heading">
-    <h2 id="about-heading">O aplikaci</h2>
-    <p>
-      Tato webová stránka čte měřič <strong>RDTech TC66C</strong> pro USB-C a ovládá zdroj <strong>RDTech DPS3005</strong>
-      přímo v prohlížeči. Používá Web Serial API, takže nepotřebuje instalaci ani server.
-      Měřič připojíte přes USB a uvidíte živé hodnoty, záznam uložený v měřiči a test baterie.
-      Zdroj připojíte přes USB nebo Bluetooth.
-    </p>
-    <ul>
-      <li><strong>Stránka Měřič</strong> ukazuje živé napětí, proud, výkon a další hodnoty s grafy.</li>
-      <li><strong>Stránka Test baterie</strong> zaznamená vybíjení a spočítá kapacitu powerbanky.</li>
-      <li><strong>Stránka Zdroj</strong> ovládá zdroj RDTech DPS3005 přes USB nebo Bluetooth. Viz <a href="#dps">Zdroj</a>
-        a <a href="#dps-buttons">tlačítka na zdroji</a>.</li>
-      <li>Aplikace je progresivní webová aplikace (PWA). Můžete ji nainstalovat a používat offline.</li>
-    </ul>
-  </section>
+  <nav class="help-parts" aria-label="Části nápovědy">
+    <a href="#general">Obecné</a> · <a href="#meter">Měřič</a> · <a href="#battery">Test baterie</a> · <a href="#power-supply">Zdroj</a>
+  </nav>
 
-  <section aria-labelledby="device-heading">
-    <h2 id="device-heading">Zařízení</h2>
-    <div class="device-info">
-      <figure class="photo-slot">
-        <img src="img/tc66c.jpg" alt="Fotografie měřiče TC66C se zástrčkou USB-C a barevným displejem" class="photo-img"
-             width="1080" height="1080" decoding="async">
-        <figcaption>RDTech TC66C. Displej ukazuje napětí, proud, teplotu, D+ a D−.</figcaption>
-      </figure>
-      <div>
-        <p><strong>RDTech TC66C</strong> je malý USB-C měřič. Zapojte ho mezi nabíječku a zařízení.
-          Měří výkon, který jím prochází.</p>
-        <dl class="spec-list">
-          <dt>Konektory</dt><dd>Zástrčka USB-C a zásuvka USB-C</dd>
-          <dt>Pracovní napětí</dt><dd>3,5–24 V</dd>
-          <dt>Proud</dt><dd>0–5 A</dd>
-          <dt>Rozlišení</dt><dd>0,1 mV, 0,01 mA</dd>
-          <dt>Hodnoty</dt><dd>Napětí, proud, výkon, odpor zátěže, teplota, D+ a D−</dd>
-          <dt>Čítače</dt><dd>Dvě skupiny náboje (mAh) a energie (mWh)</dd>
-          <dt>Záznam</dt><dd>Offline záznam v měřiči. Aplikace ho stáhne.</dd>
-          <dt>Spojení s počítačem</dt><dd>Sériový port USB „GD32 Virtual Com Port“, 115200 Bd</dd>
-        </dl>
-        <p class="hint">Hodnoty z manuálu RDTech. Přesnost najdete v manuálu vašeho měřiče.</p>
+  <div class="help-part" id="general">
+    <h2 class="part-title">Obecné</h2>
+
+    <section aria-labelledby="about-heading">
+      <h3 class="section-heading" id="about-heading">O aplikaci</h3>
+      <p>
+        Tato webová stránka čte měřič <strong>RDTech TC66C</strong> pro USB-C a ovládá zdroj <strong>RDTech DPS3005</strong>
+        přímo v prohlížeči. Používá Web Serial API, takže nepotřebuje instalaci ani server.
+        Měřič připojíte přes USB a uvidíte živé hodnoty, záznam uložený v měřiči a test baterie.
+        Zdroj připojíte přes USB nebo Bluetooth.
+      </p>
+      <ul>
+        <li><strong>Stránka Měřič</strong> ukazuje živé napětí, proud, výkon a další hodnoty s grafy.</li>
+        <li><strong>Stránka Test baterie</strong> zaznamená vybíjení a spočítá kapacitu powerbanky.</li>
+        <li><strong>Stránka Zdroj</strong> ovládá zdroj RDTech DPS3005 přes USB nebo Bluetooth. Viz <a href="#power-supply">Zdroj</a>
+          a <a href="#dps-buttons">tlačítka na zdroji</a>.</li>
+        <li>Aplikace je progresivní webová aplikace (PWA). Můžete ji nainstalovat a používat offline.</li>
+      </ul>
+    </section>
+  
+    <section id="connection" aria-labelledby="connection-heading">
+      <h3 class="section-heading" id="connection-heading">Připojení</h3>
+      <p><strong>Další připojení.</strong> Po prvním připojení použije tlačítko <strong>Připojit</strong> stejný port znovu,
+        bez dialogu pro výběr portu. Jiný port vyberete tlačítkem <strong>Vybrat port…</strong>.</p>
+      <p><strong>Ztráta spojení.</strong> Když se kabel uvolní nebo se zařízení restartuje, stránka se jednu až dvě minuty
+        pokouší znovu připojit. Běžící test baterie pokračuje, až bude měřič zpět.
+        Za dobu bez dat stránka nepřičte žádný náboj.</p>
+    </section>
+  
+    <section id="install" aria-labelledby="install-heading">
+      <h3 class="section-heading" id="install-heading">Instalace aplikace</h3>
+      <p>
+        Aplikaci můžete nainstalovat do počítače nebo telefonu.
+        Pak se otevírá ve vlastním okně a funguje offline.
+      </p>
+      <p data-install-status>V Chrome nebo Edge klikněte v záhlaví na <strong>Instalovat</strong> nebo použijte ikonu instalace v adresním řádku.</p>
+      <p><button type="button" class="primary" data-install-button hidden>Nainstalovat aplikaci</button></p>
+      <div data-install-ios hidden>
+        <p>Na iPhonu nebo iPadu:</p>
+        <ol>
+          <li>Otevřete stránku v Safari.</li>
+          <li>Klepněte na tlačítko <strong>Sdílet</strong>.</li>
+          <li>Klepněte na <strong>Přidat na plochu</strong>.</li>
+        </ol>
+        <p>iOS nemá Web Serial API, takže se tam aplikace k měřiči nepřipojí.</p>
       </div>
+      <p><strong>Aktualizace.</strong> Aplikace hledá novou verzi při otevření a každých 30 minut.
+        Když je nová verze připravená, lišta dole nabídne nové načtení.
+        Aplikace se sama nenačte znovu, takže běžící test se nepřeruší.
+        Můžete také kliknout na <strong>Zkontrolovat aktualizace</strong> dole na každé stránce.</p>
+    </section>
     </div>
-  </section>
 
-  <section aria-labelledby="start-heading">
-    <h2 id="start-heading">Quick start</h2>
-    <ol>
-      <li>Připojte měřič k počítači kabelem USB.</li>
-      <li>Otevřete aplikaci v Chrome nebo Edge (nebo ve Firefoxu 151+).</li>
-      <li>Zavřete ostatní programy, které port používají.</li>
-      <li>Přejděte na <a href="meter.html">stránku Měřič</a> a klikněte na <strong>Připojit</strong>.</li>
-      <li>V dialogu prohlížeče vyberte „GD32 Virtual Com Port“.</li>
-    </ol>
-    <p>Na stránce Měřič má každá hodnota malé tlačítko <span class="q-sample">?</span>, které ji vysvětlí.</p>
-    <p><strong>Další připojení.</strong> Po prvním připojení použije tlačítko <strong>Připojit</strong> stejný port znovu,
-      bez dialogu pro výběr portu. Jiný port vyberete tlačítkem <strong>Vybrat port…</strong>.</p>
-    <p><strong>Ztráta spojení.</strong> Když se kabel uvolní nebo se zařízení restartuje, stránka se jednu až dvě minuty
-      pokouší znovu připojit. Běžící test baterie pokračuje, až bude měřič zpět.
-      Za dobu bez dat stránka nepřičte žádný náboj.</p>
-    <p><strong>Dlouhé testy.</strong> Stránka drží periodu čtení i ve skryté kartě. Během testu baterie nechává zapnutou obrazovku.
-      Během testu kartu nezavírejte. Pokud se karta zavře, při další návštěvě stránka uloží naměřenou část testu.</p>
-  </section>
+  <div class="help-part" id="meter">
+    <h2 class="part-title">Měřič</h2>
+    <p class="part-page">Stránka: <a href="meter.html">Měřič</a></p>
 
-  <section id="install" aria-labelledby="install-heading">
-    <h2 id="install-heading">Instalace aplikace</h2>
-    <p>
-      Aplikaci můžete nainstalovat do počítače nebo telefonu.
-      Pak se otevírá ve vlastním okně a funguje offline.
-    </p>
-    <p data-install-status>V Chrome nebo Edge klikněte v záhlaví na <strong>Instalovat</strong> nebo použijte ikonu instalace v adresním řádku.</p>
-    <p><button type="button" class="primary" data-install-button hidden>Nainstalovat aplikaci</button></p>
-    <div data-install-ios hidden>
-      <p>Na iPhonu nebo iPadu:</p>
+    <section aria-labelledby="device-heading">
+      <h3 class="section-heading" id="device-heading">Zařízení</h3>
+      <div class="device-info">
+        <figure class="photo-slot">
+          <img src="img/tc66c.jpg" alt="Fotografie měřiče TC66C se zástrčkou USB-C a barevným displejem" class="photo-img"
+               width="1080" height="1080" decoding="async">
+          <figcaption>RDTech TC66C. Displej ukazuje napětí, proud, teplotu, D+ a D−.</figcaption>
+        </figure>
+        <div>
+          <p><strong>RDTech TC66C</strong> je malý USB-C měřič. Zapojte ho mezi nabíječku a zařízení.
+            Měří výkon, který jím prochází.</p>
+          <dl class="spec-list">
+            <dt>Konektory</dt><dd>Zástrčka USB-C a zásuvka USB-C</dd>
+            <dt>Pracovní napětí</dt><dd>3,5–24 V</dd>
+            <dt>Proud</dt><dd>0–5 A</dd>
+            <dt>Rozlišení</dt><dd>0,1 mV, 0,01 mA</dd>
+            <dt>Hodnoty</dt><dd>Napětí, proud, výkon, odpor zátěže, teplota, D+ a D−</dd>
+            <dt>Čítače</dt><dd>Dvě skupiny náboje (mAh) a energie (mWh)</dd>
+            <dt>Záznam</dt><dd>Offline záznam v měřiči. Aplikace ho stáhne.</dd>
+            <dt>Spojení s počítačem</dt><dd>Sériový port USB „GD32 Virtual Com Port“, 115200 Bd</dd>
+          </dl>
+          <p class="hint">Hodnoty z manuálu RDTech. Přesnost najdete v manuálu vašeho měřiče.</p>
+        </div>
+      </div>
+    </section>
+  
+    <section aria-labelledby="start-heading">
+      <h3 class="section-heading" id="start-heading">Quick start</h3>
       <ol>
-        <li>Otevřete stránku v Safari.</li>
-        <li>Klepněte na tlačítko <strong>Sdílet</strong>.</li>
-        <li>Klepněte na <strong>Přidat na plochu</strong>.</li>
+        <li>Připojte měřič k počítači kabelem USB.</li>
+        <li>Otevřete aplikaci v Chrome nebo Edge (nebo ve Firefoxu 151+).</li>
+        <li>Zavřete ostatní programy, které port používají.</li>
+        <li>Přejděte na <a href="meter.html">stránku Měřič</a> a klikněte na <strong>Připojit</strong>.</li>
+        <li>V dialogu prohlížeče vyberte „GD32 Virtual Com Port“.</li>
       </ol>
-      <p>iOS nemá Web Serial API, takže se tam aplikace k měřiči nepřipojí.</p>
+      <p>Na stránce Měřič má každá hodnota malé tlačítko <span class="q-sample">?</span>, které ji vysvětlí.</p>
+    </section>
     </div>
-    <p><strong>Aktualizace.</strong> Aplikace hledá novou verzi při otevření a každých 30 minut.
-      Když je nová verze připravená, lišta dole nabídne nové načtení.
-      Aplikace se sama nenačte znovu, takže běžící test se nepřeruší.
-      Můžete také kliknout na <strong>Zkontrolovat aktualizace</strong> dole na každé stránce.</p>
-  </section>
 
-  <section id="efficiency" aria-labelledby="efficiency-heading">
-    <h2 id="efficiency-heading">Test baterie: účinnost</h2>
-    <p>
-      Účinnost porovnává energii, kterou powerbanka vydá, s energií na jejím štítku.
-      Uvidíte ji, když na <a href="battery.html">stránce Test baterie</a> zadáte jmenovitou kapacitu a napětí článku.
-    </p>
-    <p><strong>Jak ji stránka počítá</strong></p>
-    <ol>
-      <li>Jmenovitá energie (Wh) = jmenovitá kapacita (mAh) × napětí článku (V) ÷ 1000.</li>
-      <li>Dodaná energie (Wh) = součet napětí × proud × čas pro všechny vzorky na výstupu USB.</li>
-      <li>Účinnost (%) = dodaná energie ÷ jmenovitá energie × 100.</li>
-    </ol>
-    <p>
-      Příklad: powerbanka 10000 mAh s články 3,7 V má jmenovitou energii 37 Wh.
-      Když měřič na výstupu napočítá 30 Wh, účinnost je 30 ÷ 37 = 81 %.
-    </p>
-    <p>
-      Štítek udává kapacitu vnitřních článků při 3,7 V (někteří výrobci uvádějí 3,6 V nebo 3,85 V).
-      Výstup má 5 V nebo víc, takže powerbanka musí napětí převádět.
-      Měnič, odpor článků a ochranné obvody spotřebují část energie.
-      Proto 100 % není možné. Neporovnávejte mAh při 5 V s mAh na štítku. Porovnávejte Wh.
-    </p>
-    <p><strong>Jak číst výsledek</strong></p>
-    <table class="eff-table">
-      <thead><tr><th>Účinnost</th><th>Význam</th></tr></thead>
-      <tbody>
-        <tr><td>nad 95 %</td><td>Neobvyklé. Zkontrolujte napětí článku. Štítek také může udávat menší kapacitu, než články mají.</td></tr>
-        <tr><td>85–95 %</td><td>Velmi dobré. Dobrý měnič a dobré články.</td></tr>
-        <tr><td>75–85 %</td><td>Dobré. To je u většiny powerbank běžné.</td></tr>
-        <tr><td>65–75 %</td><td>Průměrné. Staré články, vysoký proud nebo levný měnič.</td></tr>
-        <tr><td>pod 65 %</td><td>Slabé. Články jsou opotřebené nebo štítek udává příliš velkou kapacitu.</td></tr>
-      </tbody>
-    </table>
-    <p><strong>Co výsledek mění</strong></p>
-    <ul>
-      <li><strong>Proud zátěže.</strong> Vysoký proud znamená větší ztráty. Pro porovnání powerbank testujte asi při 1 A.</li>
-      <li><strong>Výstupní napětí.</strong> USB PD při 9 V, 12 V nebo 20 V může dát jiný výsledek než 5 V.</li>
-      <li><strong>Plné nabití.</strong> Před testem powerbanku plně nabijte.</li>
-      <li><strong>Automatické vypnutí.</strong> Některé powerbanky se při malém proudu vypnou. Pak test skončí dřív a účinnost vyjde nízká.</li>
-      <li><strong>Stáří a teplota.</strong> Staré nebo studené články dají méně energie.</li>
-    </ul>
-    <p>Dlaždice <strong>Zbývá (odhad)</strong> vychází z jmenovité energie. Nezahrnuje ztráty, takže skutečný čas je kratší.</p>
-  </section>
+  <div class="help-part" id="battery">
+    <h2 class="part-title">Test baterie</h2>
+    <p class="part-page">Stránka: <a href="battery.html">Test baterie</a></p>
 
-  <section id="dps" aria-labelledby="dps-heading">
-    <h2 id="dps-heading">Zdroj (DPS3005)</h2>
-    <p>
-      <a href="dps.html">Stránka Zdroj</a> ovládá programovatelný zdroj <strong>RDTech DPS3005</strong>.
-      Zdroj používá protokol Modbus RTU. Jiné modely DPS mohou fungovat, ale jejich škálování není ověřené.
-    </p>
-    <p><strong>Připojení přes Bluetooth (Windows)</strong></p>
-    <ol>
-      <li>Zapněte zdroj. Zavřete aplikaci v telefonu, modul Bluetooth přijme jen jedno spojení.</li>
-      <li>Otevřete <strong>Nastavení → Bluetooth a zařízení → Přidat zařízení → Bluetooth</strong>.</li>
-      <li>Vyberte zdroj, například „DPS3005_001“. Zadejte PIN, obvykle <code>1234</code>.</li>
-      <li>Windows přidají dva porty COM pro Bluetooth. Stránka používá <strong>odchozí</strong> port.</li>
-      <li>Na stránce Zdroj klikněte na <strong>Připojit</strong> a vyberte port Bluetooth nebo položku RFCOMM.</li>
-    </ol>
-    <p>
-      Novější verze Chrome umí otevřít sériovou službu Bluetooth i přímo. Nastavte <strong>Porty</strong> na
-      „Jen Bluetooth (RFCOMM)“ a uvidíte jen tyto položky.
-    </p>
-    <p><strong>Připojení přes USB</strong>: připojte ke zdroji komunikační modul USB a vyberte jeho port COM.</p>
-    <p>
-      Výchozí nastavení je 9600 baudů a adresa 1.
-      Pokud jste je na zdroji změnili, nastavte před připojením stejné hodnoty i na stránce.
-    </p>
-    <p><strong>Co stránka ukazuje</strong></p>
-    <ul>
-      <li><strong>CV</strong> (konstantní napětí): zdroj drží výstupní napětí na U-SET.</li>
-      <li><strong>CC</strong> (konstantní proud): zátěž chce víc než I-SET, takže zdroj sníží napětí a drží proud na I-SET.</li>
-      <li><strong>Ochrana</strong>: OVP (přepětí), OCP (nadproud) nebo OPP (přetížení výkonem) vypnula výstup.
-        Odstraňte příčinu a výstup znovu zapněte.</li>
-      <li><strong>Klávesy zamčené</strong>: tlačítka na zdroji nefungují, dokud je neodemknete.</li>
-      <li><strong>Zamknout klávesy po připojení</strong>: když je tento přepínač zapnutý, stránka zamkne klávesy při každém připojení.
-        Odpojení je znovu odemkne, ale jen pokud je zamkla stránka. Když se spojení přeruší, klávesy zůstanou zamčené.
-        Pak je odemknete podržením otočného ovladače na zdroji po dobu 2 s.</li>
-      <li><strong>Paměťové skupiny M0–M9</strong>: uložené sady U, I a ochranných limitů. Vyvolat načte jednu skupinu.
-        <strong>Upravit</strong> otevře dialog se všemi hodnotami skupiny: U, I, OVP, OCP, OPP, jas, M-PRE a výstup po zapnutí.
-        <strong>Uložit do zdroje</strong> je zapíše. <strong>Použít aktuální U/I</strong> zkopíruje do dialogu současné U-SET a I-SET.
-        Úprava M0 hned změní aktivní nastavení.
-        M0 je skupina, kterou zdroj načte po zapnutí.</li>
-      <li><strong>Nastavení U a I</strong>: použijte šipky nebo klávesy ↑ ↓. Velikost kroku zvolíte pod hodnotou.
-        Podržením šipky se krok opakuje. Page Up a Page Down mění hodnotu o 10 kroků. Escape zruší napsanou hodnotu.</li>
-    </ul>
-    <p><strong>Bezpečnost</strong></p>
-    <ul>
-      <li><strong>Bezpečnostní limity</strong> (pod nastavením U a I): stránka nepošle napětí ani proudový limit vyšší než tyto hodnoty.
-        Šipky se na limitu zastaví. Prohlížeč si limity pamatuje.</li>
-      <li>Když zasáhne ochrana, červená lišta řekne, co se stalo a co dělat.</li>
-      <li>Zdroj potřebuje vstupní napětí alespoň 1,1 × výstupní. Když je U-SET pro vstupní napětí příliš vysoké, ukáže se varování.</li>
-    </ul>
-    <p><strong>Náboj a energie</strong>: stránka sčítá náboj (mAh), energii (Wh) a dobu se zapnutým výstupem.
-      Zdroj je nepočítá. Tlačítkem <strong>Vynulovat počítadla</strong> začnete znovu. Živé CSV obsahuje i počítadla.</p>
-    <p>Stránka posílá vždy jen jeden požadavek. Když zdroj třikrát po sobě neodpoví, stránka se odpojí a zkusí se znovu připojit.</p>
-  </section>
+    <section id="long-tests" aria-labelledby="long-tests-heading">
+      <h3 class="section-heading" id="long-tests-heading">Dlouhé testy</h3>
+      <p>Stránka drží periodu čtení i ve skryté kartě. Během testu baterie nechává zapnutou obrazovku.
+        Během testu kartu nezavírejte. Pokud se karta zavře, při další návštěvě stránka uloží naměřenou část testu.</p>
+    </section>
+  
+    <section id="efficiency" aria-labelledby="efficiency-heading">
+      <h3 class="section-heading" id="efficiency-heading">Účinnost</h3>
+      <p>
+        Účinnost porovnává energii, kterou powerbanka vydá, s energií na jejím štítku.
+        Uvidíte ji, když na <a href="battery.html">stránce Test baterie</a> zadáte jmenovitou kapacitu a napětí článku.
+      </p>
+      <p><strong>Jak ji stránka počítá</strong></p>
+      <ol>
+        <li>Jmenovitá energie (Wh) = jmenovitá kapacita (mAh) × napětí článku (V) ÷ 1000.</li>
+        <li>Dodaná energie (Wh) = součet napětí × proud × čas pro všechny vzorky na výstupu USB.</li>
+        <li>Účinnost (%) = dodaná energie ÷ jmenovitá energie × 100.</li>
+      </ol>
+      <p>
+        Příklad: powerbanka 10000 mAh s články 3,7 V má jmenovitou energii 37 Wh.
+        Když měřič na výstupu napočítá 30 Wh, účinnost je 30 ÷ 37 = 81 %.
+      </p>
+      <p>
+        Štítek udává kapacitu vnitřních článků při 3,7 V (někteří výrobci uvádějí 3,6 V nebo 3,85 V).
+        Výstup má 5 V nebo víc, takže powerbanka musí napětí převádět.
+        Měnič, odpor článků a ochranné obvody spotřebují část energie.
+        Proto 100 % není možné. Neporovnávejte mAh při 5 V s mAh na štítku. Porovnávejte Wh.
+      </p>
+      <p><strong>Jak číst výsledek</strong></p>
+      <table class="eff-table">
+        <thead><tr><th>Účinnost</th><th>Význam</th></tr></thead>
+        <tbody>
+          <tr><td>nad 95 %</td><td>Neobvyklé. Zkontrolujte napětí článku. Štítek také může udávat menší kapacitu, než články mají.</td></tr>
+          <tr><td>85–95 %</td><td>Velmi dobré. Dobrý měnič a dobré články.</td></tr>
+          <tr><td>75–85 %</td><td>Dobré. To je u většiny powerbank běžné.</td></tr>
+          <tr><td>65–75 %</td><td>Průměrné. Staré články, vysoký proud nebo levný měnič.</td></tr>
+          <tr><td>pod 65 %</td><td>Slabé. Články jsou opotřebené nebo štítek udává příliš velkou kapacitu.</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Co výsledek mění</strong></p>
+      <ul>
+        <li><strong>Proud zátěže.</strong> Vysoký proud znamená větší ztráty. Pro porovnání powerbank testujte asi při 1 A.</li>
+        <li><strong>Výstupní napětí.</strong> USB PD při 9 V, 12 V nebo 20 V může dát jiný výsledek než 5 V.</li>
+        <li><strong>Plné nabití.</strong> Před testem powerbanku plně nabijte.</li>
+        <li><strong>Automatické vypnutí.</strong> Některé powerbanky se při malém proudu vypnou. Pak test skončí dřív a účinnost vyjde nízká.</li>
+        <li><strong>Stáří a teplota.</strong> Staré nebo studené články dají méně energie.</li>
+      </ul>
+      <p>Dlaždice <strong>Zbývá (odhad)</strong> vychází z jmenovité energie. Nezahrnuje ztráty, takže skutečný čas je kratší.</p>
+    </section>
+    </div>
 
-  <section id="dps-buttons" aria-labelledby="dps-buttons-heading">
-    <h2 id="dps-buttons-heading">Zdroj: ovládání tlačítky na zdroji</h2>
-    <p>
-      Krátký návod k přednímu panelu DPS3005. Vychází z návodu RuiDeng
-      pro DPS3003/3005/5005/8005 (verze 2019-3-15).
-      Návod ukazuje některá tlačítka jen jako obrázky. Kroky označené <span class="unconfirmed">*</span> zatím nejsou ověřené na zdroji.
-    </p>
+  <div class="help-part" id="power-supply">
+    <h2 class="part-title">Zdroj</h2>
+    <p class="part-page">Stránka: <a href="dps.html">Zdroj</a></p>
 
-    <figure class="panel-photo">
-      <img src="img/dps.jpg" alt="Přední panel zdroje DPS: vlevo tlačítka V/↑, SET a A/↓, barevný displej, vpravo otočný ovladač a tlačítko ON/OFF"
-           width="1133" height="1073" decoding="async">
-      <figcaption>Přední panel řady DPS. DPS3005 má stejná tlačítka. M1 a M2 označují tlačítka rychlého vyvolání.</figcaption>
-    </figure>
-    <p><strong>Ovládací prvky</strong></p>
-    <table class="eff-table">
-      <thead><tr><th>Prvek</th><th>Krátký stisk</th><th>Podržení 2 s</th></tr></thead>
-      <tbody>
-        <tr><td>V/↑</td><td>Nastavení napětí. V menu: nahoru.</td><td>Vyvolá paměťovou skupinu M1.</td></tr>
-        <tr><td>SET</td><td>Otevře menu nastavení.</td><td>Výběr paměťové skupiny k vyvolání (M1–M9).</td></tr>
-        <tr><td>A/↓</td><td>Nastavení proudového limitu. V menu: dolů.</td><td>Vyvolá paměťovou skupinu M2.</td></tr>
-        <tr><td>Otočný ovladač</td><td>Otočení: změna hodnoty. Stisk: kurzor na další číslici.</td><td>Zamkne nebo odemkne klávesy.</td></tr>
-        <tr><td>ON/OFF</td><td>Zapne nebo vypne výstup.</td><td>–</td></tr>
-      </tbody>
-    </table>
+    <section id="dps" aria-labelledby="dps-heading">
+      <h3 class="section-heading" id="dps-heading">Stránka Zdroj</h3>
+      <p>
+        <a href="dps.html">Stránka Zdroj</a> ovládá programovatelný zdroj <strong>RDTech DPS3005</strong>.
+        Zdroj používá protokol Modbus RTU. Jiné modely DPS mohou fungovat, ale jejich škálování není ověřené.
+      </p>
+      <p><strong>Připojení přes Bluetooth (Windows)</strong></p>
+      <ol>
+        <li>Zapněte zdroj. Zavřete aplikaci v telefonu, modul Bluetooth přijme jen jedno spojení.</li>
+        <li>Otevřete <strong>Nastavení → Bluetooth a zařízení → Přidat zařízení → Bluetooth</strong>.</li>
+        <li>Vyberte zdroj, například „DPS3005_001“. Zadejte PIN, obvykle <code>1234</code>.</li>
+        <li>Windows přidají dva porty COM pro Bluetooth. Stránka používá <strong>odchozí</strong> port.</li>
+        <li>Na stránce Zdroj klikněte na <strong>Připojit</strong> a vyberte port Bluetooth nebo položku RFCOMM.</li>
+      </ol>
+      <p>
+        Novější verze Chrome umí otevřít sériovou službu Bluetooth i přímo. Nastavte <strong>Porty</strong> na
+        „Jen Bluetooth (RFCOMM)“ a uvidíte jen tyto položky.
+      </p>
+      <p><strong>Připojení přes USB</strong>: připojte ke zdroji komunikační modul USB a vyberte jeho port COM.</p>
+      <p>
+        Výchozí nastavení je 9600 baudů a adresa 1.
+        Pokud jste je na zdroji změnili, nastavte před připojením stejné hodnoty i na stránce.
+      </p>
+      <p><strong>Co stránka ukazuje</strong></p>
+      <ul>
+        <li><strong>CV</strong> (konstantní napětí): zdroj drží výstupní napětí na U-SET.</li>
+        <li><strong>CC</strong> (konstantní proud): zátěž chce víc než I-SET, takže zdroj sníží napětí a drží proud na I-SET.</li>
+        <li><strong>Ochrana</strong>: OVP (přepětí), OCP (nadproud) nebo OPP (přetížení výkonem) vypnula výstup.
+          Odstraňte příčinu a výstup znovu zapněte.</li>
+        <li><strong>Klávesy zamčené</strong>: tlačítka na zdroji nefungují, dokud je neodemknete.</li>
+        <li><strong>Zamknout klávesy po připojení</strong>: když je tento přepínač zapnutý, stránka zamkne klávesy při každém připojení.
+          Odpojení je znovu odemkne, ale jen pokud je zamkla stránka. Když se spojení přeruší, klávesy zůstanou zamčené.
+          Pak je odemknete podržením otočného ovladače na zdroji po dobu 2 s.</li>
+        <li><strong>Paměťové skupiny M0–M9</strong>: uložené sady U, I a ochranných limitů. Vyvolat načte jednu skupinu.
+          <strong>Upravit</strong> otevře dialog se všemi hodnotami skupiny: U, I, OVP, OCP, OPP, jas, M-PRE a výstup po zapnutí.
+          <strong>Uložit do zdroje</strong> je zapíše. <strong>Použít aktuální U/I</strong> zkopíruje do dialogu současné U-SET a I-SET.
+          Úprava M0 hned změní aktivní nastavení.
+          M0 je skupina, kterou zdroj načte po zapnutí.</li>
+        <li><strong>Nastavení U a I</strong>: použijte šipky nebo klávesy ↑ ↓. Velikost kroku zvolíte pod hodnotou.
+          Podržením šipky se krok opakuje. Page Up a Page Down mění hodnotu o 10 kroků. Escape zruší napsanou hodnotu.</li>
+      </ul>
+      <p><strong>Bezpečnost</strong></p>
+      <ul>
+        <li><strong>Bezpečnostní limity</strong> (pod nastavením U a I): stránka nepošle napětí ani proudový limit vyšší než tyto hodnoty.
+          Šipky se na limitu zastaví. Prohlížeč si limity pamatuje.</li>
+        <li>Když zasáhne ochrana, červená lišta řekne, co se stalo a co dělat.</li>
+        <li>Zdroj potřebuje vstupní napětí alespoň 1,1 × výstupní. Když je U-SET pro vstupní napětí příliš vysoké, ukáže se varování.</li>
+      </ul>
+      <p><strong>Náboj a energie</strong>: stránka sčítá náboj (mAh), energii (Wh) a dobu se zapnutým výstupem.
+        Zdroj je nepočítá. Tlačítkem <strong>Vynulovat počítadla</strong> začnete znovu. Živé CSV obsahuje i počítadla.</p>
+      <p>Stránka posílá vždy jen jeden požadavek. Když zdroj třikrát po sobě neodpoví, stránka se odpojí a zkusí se znovu připojit.</p>
+    </section>
+  
+    <section id="dps-buttons" aria-labelledby="dps-buttons-heading">
+      <h3 class="section-heading" id="dps-buttons-heading">Ovládání tlačítky na zdroji</h3>
+      <p>
+        Krátký návod k přednímu panelu DPS3005. Vychází z návodu RuiDeng
+        pro DPS3003/3005/5005/8005 (verze 2019-3-15).
+        Návod ukazuje některá tlačítka jen jako obrázky. Kroky označené <span class="unconfirmed">*</span> zatím nejsou ověřené na zdroji.
+      </p>
 
-    <p><strong>Nastavení napětí nebo proudového limitu</strong></p>
-    <ol>
-      <li>Stiskněte V/↑ pro napětí nebo A/↓ pro proudový limit.</li>
-      <li>Mačkejte otočný ovladač, dokud kurzor není na číslici, kterou chcete změnit.</li>
-      <li>Otočte ovladačem. Po směru hodin hodnota roste.</li>
-      <li>Stiskem SET uložíte a odejdete.<span class="unconfirmed">*</span> Po 1 minutě bez akce zdroj nastavení opustí sám.</li>
-    </ol>
+      <figure class="panel-photo">
+        <img src="img/dps.jpg" alt="Přední panel zdroje DPS: vlevo tlačítka V/↑, SET a A/↓, barevný displej, vpravo otočný ovladač a tlačítko ON/OFF"
+             width="1133" height="1073" decoding="async">
+        <figcaption>Přední panel řady DPS. DPS3005 má stejná tlačítka. M1 a M2 označují tlačítka rychlého vyvolání.</figcaption>
+      </figure>
+      <p><strong>Ovládací prvky</strong></p>
+      <table class="eff-table">
+        <thead><tr><th>Prvek</th><th>Krátký stisk</th><th>Podržení 2 s</th></tr></thead>
+        <tbody>
+          <tr><td>V/↑</td><td>Nastavení napětí. V menu: nahoru.</td><td>Vyvolá paměťovou skupinu M1.</td></tr>
+          <tr><td>SET</td><td>Otevře menu nastavení.</td><td>Výběr paměťové skupiny k vyvolání (M1–M9).</td></tr>
+          <tr><td>A/↓</td><td>Nastavení proudového limitu. V menu: dolů.</td><td>Vyvolá paměťovou skupinu M2.</td></tr>
+          <tr><td>Otočný ovladač</td><td>Otočení: změna hodnoty. Stisk: kurzor na další číslici.</td><td>Zamkne nebo odemkne klávesy.</td></tr>
+          <tr><td>ON/OFF</td><td>Zapne nebo vypne výstup.</td><td>–</td></tr>
+        </tbody>
+      </table>
 
-    <p><strong>Nastavení nadproudové ochrany (OCP)</strong></p>
-    <ol>
-      <li>Stiskněte SET. Otevře se menu nastavení.</li>
-      <li>Mačkejte V/↑ nebo A/↓, dokud není vybrané <strong>S-OCP</strong>.</li>
-      <li>Stiskem otočného ovladače dáte kurzor na číslici. Otočením ji změníte.</li>
-      <li>Stiskem SET odejdete.<span class="unconfirmed">*</span></li>
-    </ol>
-    <p>
-      Stejně nastavíte <strong>S-OVP</strong> (přepětí, ve V) a <strong>S-OPP</strong> (přetížení výkonem, ve W).
-      OCP nastavte o trochu výš, než je proud, který zátěž potřebuje. OVP nastavte o trochu výš než U-SET.
-      Když hodnota překročí limit, zdroj vypne výstup a ukáže OVP, OCP nebo OPP.
-      Výstup se vypne i tehdy, když má výkonová deska víc než 80 °C.
-      Odstraňte příčinu a výstup znovu zapněte tlačítkem ON/OFF.
-    </p>
-    <p>
-      Ochranné hodnoty patří k aktivní paměťové skupině.
-      Každá změna na zdroji zapíše nové hodnoty i do M0, tedy do skupiny, kterou zdroj načte po zapnutí.
-    </p>
+      <p><strong>Nastavení napětí nebo proudového limitu</strong></p>
+      <ol>
+        <li>Stiskněte V/↑ pro napětí nebo A/↓ pro proudový limit.</li>
+        <li>Mačkejte otočný ovladač, dokud kurzor není na číslici, kterou chcete změnit.</li>
+        <li>Otočte ovladačem. Po směru hodin hodnota roste.</li>
+        <li>Stiskem SET uložíte a odejdete.<span class="unconfirmed">*</span> Po 1 minutě bez akce zdroj nastavení opustí sám.</li>
+      </ol>
 
-    <p><strong>Paměťové skupiny M0–M9</strong></p>
-    <ul>
-      <li><strong>Rychlé vyvolání:</strong> podržením V/↑ na 2 s načtete M1. Podržením A/↓ na 2 s načtete M2.</li>
-      <li><strong>Vyvolání libovolné skupiny:</strong> podržte SET na 2 s. Otočným ovladačem vyberte M1–M9. Stiskem SET skupinu načtete.</li>
-      <li><strong>Uložení hodnot do skupiny:</strong> v menu nastavení vyberte otočným ovladačem číslo skupiny.
-        Stiskněte SET a pomocí V/↑, A/↓ a otočného ovladače nastavte U-SET, I-SET, S-OVP, S-OCP, S-OPP a další hodnoty.
-        Podržením SET na 2 s skupinu uložíte.<span class="unconfirmed">*</span> Stiskem SET odejdete.</li>
-      <li><strong>M-PRE:</strong> ON zachová při vyvolání skupiny stav výstupu. OFF při vyvolání skupiny výstup vypne.</li>
-      <li><strong>Výstup po zapnutí</strong> (S-INI): ON zapne výstup hned po startu zdroje. Používejte opatrně.</li>
-    </ul>
+      <p><strong>Nastavení nadproudové ochrany (OCP)</strong></p>
+      <ol>
+        <li>Stiskněte SET. Otevře se menu nastavení.</li>
+        <li>Mačkejte V/↑ nebo A/↓, dokud není vybrané <strong>S-OCP</strong>.</li>
+        <li>Stiskem otočného ovladače dáte kurzor na číslici. Otočením ji změníte.</li>
+        <li>Stiskem SET odejdete.<span class="unconfirmed">*</span></li>
+      </ol>
+      <p>
+        Stejně nastavíte <strong>S-OVP</strong> (přepětí, ve V) a <strong>S-OPP</strong> (přetížení výkonem, ve W).
+        OCP nastavte o trochu výš, než je proud, který zátěž potřebuje. OVP nastavte o trochu výš než U-SET.
+        Když hodnota překročí limit, zdroj vypne výstup a ukáže OVP, OCP nebo OPP.
+        Výstup se vypne i tehdy, když má výkonová deska víc než 80 °C.
+        Odstraňte příčinu a výstup znovu zapněte tlačítkem ON/OFF.
+      </p>
+      <p>
+        Ochranné hodnoty patří k aktivní paměťové skupině.
+        Každá změna na zdroji zapíše nové hodnoty i do M0, tedy do skupiny, kterou zdroj načte po zapnutí.
+      </p>
 
-    <p><strong>Další nastavení</strong></p>
-    <ul>
-      <li><strong>Zámek kláves:</strong> podržte otočný ovladač na 2 s. Vpravo na displeji se ukáže zámek. Dalším podržením na 2 s klávesy odemknete.
-        Při zamčených klávesách nefunguje ani ON/OFF.</li>
-      <li><strong>Jas:</strong> v menu nastavení vyberte <strong>B-LED</strong>. Otočte ovladačem: 0 je nejtmavší, 5 nejjasnější.</li>
-      <li><strong>Nastavení komunikace:</strong> při zapínání zdroje držte V/↑.
-        Pomocí V/↑ a A/↓ vyberte COMM (zapnuto nebo vypnuto), ADDR (adresa, výchozí 001), BAUD (2400–19200, výchozí 9600) nebo BPIN (PIN Bluetooth, výchozí 1234).
-        Stiskem otočného ovladače hodnotu změníte. Dvojím stiskem SET uložíte a odejdete.<span class="unconfirmed">*</span>
-        Před změnou těchto nastavení odpojte Bluetooth.</li>
-      <li><strong>Vstupní napětí:</strong> vstup musí mít alespoň 1,1 × výstupní napětí. Pro 12 V na výstupu použijte 13,2 V nebo víc.
-        DPS3005 přijme na vstupu 6–40 V a dá na výstupu 0–32 V a 0–5 A, nejvýše 160 W.</li>
-    </ul>
-  </section>
+      <p><strong>Paměťové skupiny M0–M9</strong></p>
+      <ul>
+        <li><strong>Rychlé vyvolání:</strong> podržením V/↑ na 2 s načtete M1. Podržením A/↓ na 2 s načtete M2.</li>
+        <li><strong>Vyvolání libovolné skupiny:</strong> podržte SET na 2 s. Otočným ovladačem vyberte M1–M9. Stiskem SET skupinu načtete.</li>
+        <li><strong>Uložení hodnot do skupiny:</strong> v menu nastavení vyberte otočným ovladačem číslo skupiny.
+          Stiskněte SET a pomocí V/↑, A/↓ a otočného ovladače nastavte U-SET, I-SET, S-OVP, S-OCP, S-OPP a další hodnoty.
+          Podržením SET na 2 s skupinu uložíte.<span class="unconfirmed">*</span> Stiskem SET odejdete.</li>
+        <li><strong>M-PRE:</strong> ON zachová při vyvolání skupiny stav výstupu. OFF při vyvolání skupiny výstup vypne.</li>
+        <li><strong>Výstup po zapnutí</strong> (S-INI): ON zapne výstup hned po startu zdroje. Používejte opatrně.</li>
+      </ul>
+
+      <p><strong>Další nastavení</strong></p>
+      <ul>
+        <li><strong>Zámek kláves:</strong> podržte otočný ovladač na 2 s. Vpravo na displeji se ukáže zámek. Dalším podržením na 2 s klávesy odemknete.
+          Při zamčených klávesách nefunguje ani ON/OFF.</li>
+        <li><strong>Jas:</strong> v menu nastavení vyberte <strong>B-LED</strong>. Otočte ovladačem: 0 je nejtmavší, 5 nejjasnější.</li>
+        <li><strong>Nastavení komunikace:</strong> při zapínání zdroje držte V/↑.
+          Pomocí V/↑ a A/↓ vyberte COMM (zapnuto nebo vypnuto), ADDR (adresa, výchozí 001), BAUD (2400–19200, výchozí 9600) nebo BPIN (PIN Bluetooth, výchozí 1234).
+          Stiskem otočného ovladače hodnotu změníte. Dvojím stiskem SET uložíte a odejdete.<span class="unconfirmed">*</span>
+          Před změnou těchto nastavení odpojte Bluetooth.</li>
+        <li><strong>Vstupní napětí:</strong> vstup musí mít alespoň 1,1 × výstupní napětí. Pro 12 V na výstupu použijte 13,2 V nebo víc.
+          DPS3005 přijme na vstupu 6–40 V a dá na výstupu 0–32 V a 0–5 A, nejvýše 160 W.</li>
+      </ul>
+    </section>
+    </div>
 
   <section aria-labelledby="links-heading">
     <h2 id="links-heading">Odkazy a zdroje</h2>

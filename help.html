@@ -29,264 +29,295 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
   </div>
 </header>
 <main class="prose">
-  <section aria-labelledby="about-heading">
-    <h2 id="about-heading">About this app</h2>
-    <p>
-      This web page reads the <strong>RDTech TC66C</strong> USB-C power meter and controls the <strong>RDTech DPS3005</strong>
-      power supply in your browser. It uses the Web Serial API, so it needs no install and no server.
-      You connect the meter over USB and see the live values, the stored recording and a battery test.
-      You connect the power supply over USB or Bluetooth.
-    </p>
-    <ul>
-      <li><strong>Meter page</strong> shows live voltage, current, power and more, with charts.</li>
-      <li><strong>Battery test page</strong> records a discharge and computes the capacity of a power bank.</li>
-      <li><strong>Power supply page</strong> controls an RDTech DPS3005 power supply over USB or Bluetooth. See <a href="#dps">Power supply</a>
-        and <a href="#dps-buttons">the buttons on the supply</a>.</li>
-      <li>The app is a Progressive Web App (PWA). You can install it and use it offline.</li>
-    </ul>
-  </section>
+  <nav class="help-parts" aria-label="Help parts">
+    <a href="#general">General</a> · <a href="#meter">Meter</a> · <a href="#battery">Battery test</a> · <a href="#power-supply">Power supply</a>
+  </nav>
 
-  <section aria-labelledby="device-heading">
-    <h2 id="device-heading">The device</h2>
-    <div class="device-info">
-      <figure class="photo-slot">
-        <img src="img/tc66c.jpg" alt="Photo of the TC66C meter with its USB-C plug and color screen" class="photo-img"
-             width="1080" height="1080" decoding="async">
-        <figcaption>The RDTech TC66C. The screen shows voltage, current, temperature, D+ and D−.</figcaption>
-      </figure>
-      <div>
-        <p>The <strong>RDTech TC66C</strong> is a small USB-C meter. Put it between a charger and a device.
-          It measures the power that goes through it.</p>
-        <dl class="spec-list">
-          <dt>Connectors</dt><dd>USB-C plug and USB-C port</dd>
-          <dt>Working voltage</dt><dd>3.5–24 V</dd>
-          <dt>Current</dt><dd>0–5 A</dd>
-          <dt>Resolution</dt><dd>0.1 mV, 0.01 mA</dd>
-          <dt>Values</dt><dd>Voltage, current, power, load resistance, temperature, D+ and D−</dd>
-          <dt>Counters</dt><dd>Two groups of charge (mAh) and energy (mWh)</dd>
-          <dt>Recording</dt><dd>Offline recording in the meter. The app downloads it.</dd>
-          <dt>Computer link</dt><dd>USB serial port "GD32 Virtual Com Port", 115200 baud</dd>
-        </dl>
-        <p class="hint">Values from the RDTech manual. Check the manual of your meter for the accuracy.</p>
+  <div class="help-part" id="general">
+    <h2 class="part-title">General</h2>
+
+    <section aria-labelledby="about-heading">
+      <h3 class="section-heading" id="about-heading">About this app</h3>
+      <p>
+        This web page reads the <strong>RDTech TC66C</strong> USB-C power meter and controls the <strong>RDTech DPS3005</strong>
+        power supply in your browser. It uses the Web Serial API, so it needs no install and no server.
+        You connect the meter over USB and see the live values, the stored recording and a battery test.
+        You connect the power supply over USB or Bluetooth.
+      </p>
+      <ul>
+        <li><strong>Meter page</strong> shows live voltage, current, power and more, with charts.</li>
+        <li><strong>Battery test page</strong> records a discharge and computes the capacity of a power bank.</li>
+        <li><strong>Power supply page</strong> controls an RDTech DPS3005 power supply over USB or Bluetooth. See <a href="#power-supply">Power supply</a>
+          and <a href="#dps-buttons">the buttons on the supply</a>.</li>
+        <li>The app is a Progressive Web App (PWA). You can install it and use it offline.</li>
+      </ul>
+    </section>
+  
+    <section id="connection" aria-labelledby="connection-heading">
+      <h3 class="section-heading" id="connection-heading">Connection</h3>
+      <p><strong>Connect next time.</strong> After the first connection, <strong>Connect</strong> uses the same port again,
+        without the port dialog. Use <strong>Choose port…</strong> to select another port.</p>
+      <p><strong>Lost connection.</strong> If the cable comes loose or the device restarts, the page tries to connect again
+        for one to two minutes. A running battery test continues when the meter is back.
+        The page adds no charge for the time without data.</p>
+    </section>
+  
+    <section id="install" aria-labelledby="install-heading">
+      <h3 class="section-heading" id="install-heading">Install the app</h3>
+      <p>
+        You can install the app on your computer or phone.
+        Then it opens in its own window and works offline.
+      </p>
+      <p data-install-status>In Chrome or Edge, click <strong>Install</strong> in the header, or use the install icon in the address bar.</p>
+      <p><button type="button" class="primary" data-install-button hidden>Install the app</button></p>
+      <div data-install-ios hidden>
+        <p>On iPhone or iPad:</p>
+        <ol>
+          <li>Open the page in Safari.</li>
+          <li>Tap the <strong>Share</strong> button.</li>
+          <li>Tap <strong>Add to Home Screen</strong>.</li>
+        </ol>
+        <p>iOS has no Web Serial API, so the app cannot connect to the meter there.</p>
       </div>
+      <p><strong>Updates.</strong> The app checks for a new version when you open it and every 30 minutes.
+        When a new version is ready, a banner at the bottom asks you to reload.
+        The app does not reload by itself, so a running test does not stop.
+        You can also click <strong>Check for updates</strong> at the bottom of each page.</p>
+    </section>
     </div>
-  </section>
 
-  <section aria-labelledby="start-heading">
-    <h2 id="start-heading">Quick start</h2>
-    <ol>
-      <li>Connect the meter to the computer with a USB cable.</li>
-      <li>Open the app in Chrome or Edge (or Firefox 151+).</li>
-      <li>Close other programs that use the port.</li>
-      <li>Go to the <a href="meter.html">Meter page</a> and click <strong>Connect</strong>.</li>
-      <li>Select "GD32 Virtual Com Port" in the browser dialog.</li>
-    </ol>
-    <p>On the Meter page, each value has a small <span class="q-sample">?</span> button that explains it.</p>
-    <p><strong>Connect next time.</strong> After the first connection, <strong>Connect</strong> uses the same port again,
-      without the port dialog. Use <strong>Choose port…</strong> to select another port.</p>
-    <p><strong>Lost connection.</strong> If the cable comes loose or the device restarts, the page tries to connect again
-      for one to two minutes. A running battery test continues when the meter is back.
-      The page adds no charge for the time without data.</p>
-    <p><strong>Long tests.</strong> The page keeps its sample rate in a hidden tab. During a battery test it keeps the screen on.
-      Do not close the tab during a test. If the tab closes, the next visit saves the measured part of the test.</p>
-  </section>
+  <div class="help-part" id="meter">
+    <h2 class="part-title">Meter</h2>
+    <p class="part-page">Page: <a href="meter.html">Meter</a></p>
 
-  <section id="install" aria-labelledby="install-heading">
-    <h2 id="install-heading">Install the app</h2>
-    <p>
-      You can install the app on your computer or phone.
-      Then it opens in its own window and works offline.
-    </p>
-    <p data-install-status>In Chrome or Edge, click <strong>Install</strong> in the header, or use the install icon in the address bar.</p>
-    <p><button type="button" class="primary" data-install-button hidden>Install the app</button></p>
-    <div data-install-ios hidden>
-      <p>On iPhone or iPad:</p>
+    <section aria-labelledby="device-heading">
+      <h3 class="section-heading" id="device-heading">The device</h3>
+      <div class="device-info">
+        <figure class="photo-slot">
+          <img src="img/tc66c.jpg" alt="Photo of the TC66C meter with its USB-C plug and color screen" class="photo-img"
+               width="1080" height="1080" decoding="async">
+          <figcaption>The RDTech TC66C. The screen shows voltage, current, temperature, D+ and D−.</figcaption>
+        </figure>
+        <div>
+          <p>The <strong>RDTech TC66C</strong> is a small USB-C meter. Put it between a charger and a device.
+            It measures the power that goes through it.</p>
+          <dl class="spec-list">
+            <dt>Connectors</dt><dd>USB-C plug and USB-C port</dd>
+            <dt>Working voltage</dt><dd>3.5–24 V</dd>
+            <dt>Current</dt><dd>0–5 A</dd>
+            <dt>Resolution</dt><dd>0.1 mV, 0.01 mA</dd>
+            <dt>Values</dt><dd>Voltage, current, power, load resistance, temperature, D+ and D−</dd>
+            <dt>Counters</dt><dd>Two groups of charge (mAh) and energy (mWh)</dd>
+            <dt>Recording</dt><dd>Offline recording in the meter. The app downloads it.</dd>
+            <dt>Computer link</dt><dd>USB serial port "GD32 Virtual Com Port", 115200 baud</dd>
+          </dl>
+          <p class="hint">Values from the RDTech manual. Check the manual of your meter for the accuracy.</p>
+        </div>
+      </div>
+    </section>
+  
+    <section aria-labelledby="start-heading">
+      <h3 class="section-heading" id="start-heading">Quick start</h3>
       <ol>
-        <li>Open the page in Safari.</li>
-        <li>Tap the <strong>Share</strong> button.</li>
-        <li>Tap <strong>Add to Home Screen</strong>.</li>
+        <li>Connect the meter to the computer with a USB cable.</li>
+        <li>Open the app in Chrome or Edge (or Firefox 151+).</li>
+        <li>Close other programs that use the port.</li>
+        <li>Go to the <a href="meter.html">Meter page</a> and click <strong>Connect</strong>.</li>
+        <li>Select "GD32 Virtual Com Port" in the browser dialog.</li>
       </ol>
-      <p>iOS has no Web Serial API, so the app cannot connect to the meter there.</p>
+      <p>On the Meter page, each value has a small <span class="q-sample">?</span> button that explains it.</p>
+    </section>
     </div>
-    <p><strong>Updates.</strong> The app checks for a new version when you open it and every 30 minutes.
-      When a new version is ready, a banner at the bottom asks you to reload.
-      The app does not reload by itself, so a running test does not stop.
-      You can also click <strong>Check for updates</strong> at the bottom of each page.</p>
-  </section>
 
-  <section id="efficiency" aria-labelledby="efficiency-heading">
-    <h2 id="efficiency-heading">Battery test: efficiency</h2>
-    <p>
-      The efficiency compares the energy that the power bank gives out with the energy on its label.
-      Enter the rated capacity and the cell voltage on the <a href="battery.html">Battery test page</a> to see it.
-    </p>
-    <p><strong>How the page computes it</strong></p>
-    <ol>
-      <li>Rated energy (Wh) = rated capacity (mAh) × cell voltage (V) ÷ 1000.</li>
-      <li>Delivered energy (Wh) = sum of voltage × current × time for all samples at the USB output.</li>
-      <li>Efficiency (%) = delivered energy ÷ rated energy × 100.</li>
-    </ol>
-    <p>
-      Example: a 10000 mAh power bank with 3.7 V cells has 37 Wh rated energy.
-      If the meter counts 30 Wh at the output, the efficiency is 30 ÷ 37 = 81 %.
-    </p>
-    <p>
-      The label gives the capacity of the internal cells at 3.7 V (some use 3.6 V or 3.85 V).
-      The output is 5 V or more, so the power bank must convert the voltage.
-      The converter, the cell resistance and the protection circuit use some energy.
-      Thus, 100 % is not possible. Do not compare the mAh at 5 V with the mAh on the label. Compare the Wh.
-    </p>
-    <p><strong>How to read the result</strong></p>
-    <table class="eff-table">
-      <thead><tr><th>Efficiency</th><th>Meaning</th></tr></thead>
-      <tbody>
-        <tr><td>above 95 %</td><td>Not usual. Check the cell voltage. The label can also give less capacity than the cells have.</td></tr>
-        <tr><td>85–95 %</td><td>Very good. A good converter and good cells.</td></tr>
-        <tr><td>75–85 %</td><td>Good. This is usual for most power banks.</td></tr>
-        <tr><td>65–75 %</td><td>Fair. Old cells, high current or a cheap converter.</td></tr>
-        <tr><td>below 65 %</td><td>Poor. The cells are worn, or the label gives too much capacity.</td></tr>
-      </tbody>
-    </table>
-    <p><strong>What changes the result</strong></p>
-    <ul>
-      <li><strong>Load current.</strong> A high current causes more loss. Test at about 1 A to compare power banks.</li>
-      <li><strong>Output voltage.</strong> USB PD at 9 V, 12 V or 20 V can give a different result than 5 V.</li>
-      <li><strong>Full charge.</strong> Charge the power bank fully before the test.</li>
-      <li><strong>Auto stop.</strong> Some power banks switch off at a low current. Then the test stops early and the efficiency is too low.</li>
-      <li><strong>Age and temperature.</strong> Old or cold cells give less energy.</li>
-    </ul>
-    <p>The <strong>Remaining (est.)</strong> tile uses the rated energy. It does not include the losses, so the real time is shorter.</p>
-  </section>
+  <div class="help-part" id="battery">
+    <h2 class="part-title">Battery test</h2>
+    <p class="part-page">Page: <a href="battery.html">Battery test</a></p>
 
-  <section id="dps" aria-labelledby="dps-heading">
-    <h2 id="dps-heading">Power supply (DPS3005)</h2>
-    <p>
-      The <a href="dps.html">Power supply page</a> controls an <strong>RDTech DPS3005</strong> programmable power supply.
-      The supply uses the Modbus RTU protocol. Other DPS models can work, but their scaling is not confirmed.
-    </p>
-    <p><strong>Connect over Bluetooth (Windows)</strong></p>
-    <ol>
-      <li>Switch on the supply. Close the phone app, because the Bluetooth module accepts only one connection.</li>
-      <li>Open <strong>Settings → Bluetooth &amp; devices → Add device → Bluetooth</strong>.</li>
-      <li>Select the supply, for example "DPS3005_001". Enter the PIN, usually <code>1234</code>.</li>
-      <li>Windows adds two Bluetooth COM ports. The page uses the <strong>outgoing</strong> port.</li>
-      <li>On the Power supply page, click <strong>Connect</strong> and select the Bluetooth port or the RFCOMM entry.</li>
-    </ol>
-    <p>
-      Newer Chrome versions can also open the Bluetooth serial service directly. Set <strong>Ports</strong> to
-      "Bluetooth (RFCOMM) only" to show only these entries.
-    </p>
-    <p><strong>Connect over USB</strong>: connect the USB communication module to the supply, then select its COM port.</p>
-    <p>
-      The default settings are 9600 baud and slave address 1.
-      If you changed them on the supply, set the same values on the page before you connect.
-    </p>
-    <p><strong>What the page shows</strong></p>
-    <ul>
-      <li><strong>CV</strong> (constant voltage): the supply holds the output voltage at U-SET.</li>
-      <li><strong>CC</strong> (constant current): the load wants more than I-SET, so the supply lowers the voltage and holds the current at I-SET.</li>
-      <li><strong>Protection</strong>: OVP (over voltage), OCP (over current) or OPP (over power) switched the output off.
-        Remove the cause, then switch the output on again.</li>
-      <li><strong>Keys locked</strong>: the buttons on the supply do not work until you unlock them.</li>
-      <li><strong>Lock the keys on connect</strong>: with this switch on, the page locks the keys each time it connects.
-        Disconnect unlocks them again, but only if the page locked them. If the connection drops, the keys stay locked.
-        Then hold the knob on the supply for 2 s to unlock them.</li>
-      <li><strong>Memory groups M0–M9</strong>: stored sets of U, I and protection limits. Recall loads one group.
-        <strong>Edit</strong> opens a dialog with all values of a group: U, I, OVP, OCP, OPP, light, M-PRE and output on start.
-        <strong>Save to supply</strong> writes them. <strong>Use current U/I</strong> copies the present U-SET and I-SET into the dialog.
-        Editing M0 changes the active settings at once.
-        M0 is the group that the supply loads at power on.</li>
-      <li><strong>Set U and I</strong>: use the arrows or the ↑ ↓ keys. Choose the step size below the value.
-        Hold an arrow to repeat. Page Up and Page Down change the value by 10 steps. Escape cancels a typed value.</li>
-    </ul>
-    <p><strong>Safety</strong></p>
-    <ul>
-      <li><strong>Safety limits</strong> (below the setpoints): the page does not send a voltage or a current limit above these values.
-        The arrows stop at the limit. The browser keeps the limits.</li>
-      <li>When a protection trips, a red banner tells what happened and what to do.</li>
-      <li>The supply needs an input of at least 1.1 × the output. If U-SET is too high for the input voltage, a warning shows.</li>
-    </ul>
-    <p><strong>Charge and energy</strong>: the page adds up the charge (mAh), the energy (Wh) and the time with the output on.
-      The supply does not count them. Click <strong>Reset counters</strong> to start again. The live CSV has the counters too.</p>
-    <p>The page sends one request at a time. If the supply does not answer 3 times in a row, the page disconnects and tries to connect again.</p>
-  </section>
+    <section id="long-tests" aria-labelledby="long-tests-heading">
+      <h3 class="section-heading" id="long-tests-heading">Long tests</h3>
+      <p>The page keeps its sample rate in a hidden tab. During a battery test it keeps the screen on.
+        Do not close the tab during a test. If the tab closes, the next visit saves the measured part of the test.</p>
+    </section>
+  
+    <section id="efficiency" aria-labelledby="efficiency-heading">
+      <h3 class="section-heading" id="efficiency-heading">Efficiency</h3>
+      <p>
+        The efficiency compares the energy that the power bank gives out with the energy on its label.
+        Enter the rated capacity and the cell voltage on the <a href="battery.html">Battery test page</a> to see it.
+      </p>
+      <p><strong>How the page computes it</strong></p>
+      <ol>
+        <li>Rated energy (Wh) = rated capacity (mAh) × cell voltage (V) ÷ 1000.</li>
+        <li>Delivered energy (Wh) = sum of voltage × current × time for all samples at the USB output.</li>
+        <li>Efficiency (%) = delivered energy ÷ rated energy × 100.</li>
+      </ol>
+      <p>
+        Example: a 10000 mAh power bank with 3.7 V cells has 37 Wh rated energy.
+        If the meter counts 30 Wh at the output, the efficiency is 30 ÷ 37 = 81 %.
+      </p>
+      <p>
+        The label gives the capacity of the internal cells at 3.7 V (some use 3.6 V or 3.85 V).
+        The output is 5 V or more, so the power bank must convert the voltage.
+        The converter, the cell resistance and the protection circuit use some energy.
+        Thus, 100 % is not possible. Do not compare the mAh at 5 V with the mAh on the label. Compare the Wh.
+      </p>
+      <p><strong>How to read the result</strong></p>
+      <table class="eff-table">
+        <thead><tr><th>Efficiency</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>above 95 %</td><td>Not usual. Check the cell voltage. The label can also give less capacity than the cells have.</td></tr>
+          <tr><td>85–95 %</td><td>Very good. A good converter and good cells.</td></tr>
+          <tr><td>75–85 %</td><td>Good. This is usual for most power banks.</td></tr>
+          <tr><td>65–75 %</td><td>Fair. Old cells, high current or a cheap converter.</td></tr>
+          <tr><td>below 65 %</td><td>Poor. The cells are worn, or the label gives too much capacity.</td></tr>
+        </tbody>
+      </table>
+      <p><strong>What changes the result</strong></p>
+      <ul>
+        <li><strong>Load current.</strong> A high current causes more loss. Test at about 1 A to compare power banks.</li>
+        <li><strong>Output voltage.</strong> USB PD at 9 V, 12 V or 20 V can give a different result than 5 V.</li>
+        <li><strong>Full charge.</strong> Charge the power bank fully before the test.</li>
+        <li><strong>Auto stop.</strong> Some power banks switch off at a low current. Then the test stops early and the efficiency is too low.</li>
+        <li><strong>Age and temperature.</strong> Old or cold cells give less energy.</li>
+      </ul>
+      <p>The <strong>Remaining (est.)</strong> tile uses the rated energy. It does not include the losses, so the real time is shorter.</p>
+    </section>
+    </div>
 
-  <section id="dps-buttons" aria-labelledby="dps-buttons-heading">
-    <h2 id="dps-buttons-heading">Power supply: use the buttons on the supply</h2>
-    <p>
-      This is a short manual for the front panel of the DPS3005. It comes from the RuiDeng manual
-      for the DPS3003/3005/5005/8005 (version 2019-3-15).
-      The manual shows some keys only as pictures. Steps with a <span class="unconfirmed">*</span> are not checked on a supply yet.
-    </p>
+  <div class="help-part" id="power-supply">
+    <h2 class="part-title">Power supply</h2>
+    <p class="part-page">Page: <a href="dps.html">Power supply</a></p>
 
-    <figure class="panel-photo">
-      <img src="img/dps.jpg" alt="Front panel of a DPS power supply: keys V/↑, SET and A/↓ on the left, the color screen, the knob and the ON/OFF key on the right"
-           width="1133" height="1073" decoding="async">
-      <figcaption>The front panel of the DPS family. The DPS3005 has the same keys. M1 and M2 mark the quick recall keys.</figcaption>
-    </figure>
-    <p><strong>Controls</strong></p>
-    <table class="eff-table">
-      <thead><tr><th>Control</th><th>Short press</th><th>Hold for 2 s</th></tr></thead>
-      <tbody>
-        <tr><td>V/↑</td><td>Set the voltage. In a menu: go up.</td><td>Recall memory group M1.</td></tr>
-        <tr><td>SET</td><td>Open the data setting menu.</td><td>Select a memory group to recall (M1–M9).</td></tr>
-        <tr><td>A/↓</td><td>Set the current limit. In a menu: go down.</td><td>Recall memory group M2.</td></tr>
-        <tr><td>Knob</td><td>Turn: change the value. Press: move the cursor to the next digit.</td><td>Lock or unlock the keys.</td></tr>
-        <tr><td>ON/OFF</td><td>Switch the output on or off.</td><td>–</td></tr>
-      </tbody>
-    </table>
+    <section id="dps" aria-labelledby="dps-heading">
+      <h3 class="section-heading" id="dps-heading">Use the Power supply page</h3>
+      <p>
+        The <a href="dps.html">Power supply page</a> controls an <strong>RDTech DPS3005</strong> programmable power supply.
+        The supply uses the Modbus RTU protocol. Other DPS models can work, but their scaling is not confirmed.
+      </p>
+      <p><strong>Connect over Bluetooth (Windows)</strong></p>
+      <ol>
+        <li>Switch on the supply. Close the phone app, because the Bluetooth module accepts only one connection.</li>
+        <li>Open <strong>Settings → Bluetooth &amp; devices → Add device → Bluetooth</strong>.</li>
+        <li>Select the supply, for example "DPS3005_001". Enter the PIN, usually <code>1234</code>.</li>
+        <li>Windows adds two Bluetooth COM ports. The page uses the <strong>outgoing</strong> port.</li>
+        <li>On the Power supply page, click <strong>Connect</strong> and select the Bluetooth port or the RFCOMM entry.</li>
+      </ol>
+      <p>
+        Newer Chrome versions can also open the Bluetooth serial service directly. Set <strong>Ports</strong> to
+        "Bluetooth (RFCOMM) only" to show only these entries.
+      </p>
+      <p><strong>Connect over USB</strong>: connect the USB communication module to the supply, then select its COM port.</p>
+      <p>
+        The default settings are 9600 baud and slave address 1.
+        If you changed them on the supply, set the same values on the page before you connect.
+      </p>
+      <p><strong>What the page shows</strong></p>
+      <ul>
+        <li><strong>CV</strong> (constant voltage): the supply holds the output voltage at U-SET.</li>
+        <li><strong>CC</strong> (constant current): the load wants more than I-SET, so the supply lowers the voltage and holds the current at I-SET.</li>
+        <li><strong>Protection</strong>: OVP (over voltage), OCP (over current) or OPP (over power) switched the output off.
+          Remove the cause, then switch the output on again.</li>
+        <li><strong>Keys locked</strong>: the buttons on the supply do not work until you unlock them.</li>
+        <li><strong>Lock the keys on connect</strong>: with this switch on, the page locks the keys each time it connects.
+          Disconnect unlocks them again, but only if the page locked them. If the connection drops, the keys stay locked.
+          Then hold the knob on the supply for 2 s to unlock them.</li>
+        <li><strong>Memory groups M0–M9</strong>: stored sets of U, I and protection limits. Recall loads one group.
+          <strong>Edit</strong> opens a dialog with all values of a group: U, I, OVP, OCP, OPP, light, M-PRE and output on start.
+          <strong>Save to supply</strong> writes them. <strong>Use current U/I</strong> copies the present U-SET and I-SET into the dialog.
+          Editing M0 changes the active settings at once.
+          M0 is the group that the supply loads at power on.</li>
+        <li><strong>Set U and I</strong>: use the arrows or the ↑ ↓ keys. Choose the step size below the value.
+          Hold an arrow to repeat. Page Up and Page Down change the value by 10 steps. Escape cancels a typed value.</li>
+      </ul>
+      <p><strong>Safety</strong></p>
+      <ul>
+        <li><strong>Safety limits</strong> (below the setpoints): the page does not send a voltage or a current limit above these values.
+          The arrows stop at the limit. The browser keeps the limits.</li>
+        <li>When a protection trips, a red banner tells what happened and what to do.</li>
+        <li>The supply needs an input of at least 1.1 × the output. If U-SET is too high for the input voltage, a warning shows.</li>
+      </ul>
+      <p><strong>Charge and energy</strong>: the page adds up the charge (mAh), the energy (Wh) and the time with the output on.
+        The supply does not count them. Click <strong>Reset counters</strong> to start again. The live CSV has the counters too.</p>
+      <p>The page sends one request at a time. If the supply does not answer 3 times in a row, the page disconnects and tries to connect again.</p>
+    </section>
+  
+    <section id="dps-buttons" aria-labelledby="dps-buttons-heading">
+      <h3 class="section-heading" id="dps-buttons-heading">Use the buttons on the supply</h3>
+      <p>
+        This is a short manual for the front panel of the DPS3005. It comes from the RuiDeng manual
+        for the DPS3003/3005/5005/8005 (version 2019-3-15).
+        The manual shows some keys only as pictures. Steps with a <span class="unconfirmed">*</span> are not checked on a supply yet.
+      </p>
 
-    <p><strong>Set the voltage or the current limit</strong></p>
-    <ol>
-      <li>Press V/↑ for the voltage, or A/↓ for the current limit.</li>
-      <li>Press the knob until the cursor is on the digit that you want to change.</li>
-      <li>Turn the knob. Clockwise increases the value.</li>
-      <li>Press SET to save and exit.<span class="unconfirmed">*</span> After 1 minute with no input, the supply leaves the setting by itself.</li>
-    </ol>
+      <figure class="panel-photo">
+        <img src="img/dps.jpg" alt="Front panel of a DPS power supply: keys V/↑, SET and A/↓ on the left, the color screen, the knob and the ON/OFF key on the right"
+             width="1133" height="1073" decoding="async">
+        <figcaption>The front panel of the DPS family. The DPS3005 has the same keys. M1 and M2 mark the quick recall keys.</figcaption>
+      </figure>
+      <p><strong>Controls</strong></p>
+      <table class="eff-table">
+        <thead><tr><th>Control</th><th>Short press</th><th>Hold for 2 s</th></tr></thead>
+        <tbody>
+          <tr><td>V/↑</td><td>Set the voltage. In a menu: go up.</td><td>Recall memory group M1.</td></tr>
+          <tr><td>SET</td><td>Open the data setting menu.</td><td>Select a memory group to recall (M1–M9).</td></tr>
+          <tr><td>A/↓</td><td>Set the current limit. In a menu: go down.</td><td>Recall memory group M2.</td></tr>
+          <tr><td>Knob</td><td>Turn: change the value. Press: move the cursor to the next digit.</td><td>Lock or unlock the keys.</td></tr>
+          <tr><td>ON/OFF</td><td>Switch the output on or off.</td><td>–</td></tr>
+        </tbody>
+      </table>
 
-    <p><strong>Set the over-current protection (OCP)</strong></p>
-    <ol>
-      <li>Press SET. The data setting menu opens.</li>
-      <li>Press V/↑ or A/↓ until <strong>S-OCP</strong> is selected.</li>
-      <li>Press the knob to put the cursor on a digit. Turn the knob to change it.</li>
-      <li>Press SET to exit.<span class="unconfirmed">*</span></li>
-    </ol>
-    <p>
-      Use the same steps for <strong>S-OVP</strong> (over-voltage, in V) and <strong>S-OPP</strong> (over-power, in W).
-      Set OCP a little above the current that your load needs. Set OVP a little above U-SET.
-      If a value goes above its limit, the supply switches the output off and shows OVP, OCP or OPP.
-      The output also switches off when the power board is hotter than 80 °C.
-      Remove the cause, then press ON/OFF to switch the output on again.
-    </p>
-    <p>
-      The protection values belong to the active memory group.
-      Every change on the supply also writes the new values into M0, the group that the supply loads at power on.
-    </p>
+      <p><strong>Set the voltage or the current limit</strong></p>
+      <ol>
+        <li>Press V/↑ for the voltage, or A/↓ for the current limit.</li>
+        <li>Press the knob until the cursor is on the digit that you want to change.</li>
+        <li>Turn the knob. Clockwise increases the value.</li>
+        <li>Press SET to save and exit.<span class="unconfirmed">*</span> After 1 minute with no input, the supply leaves the setting by itself.</li>
+      </ol>
 
-    <p><strong>Memory groups M0–M9</strong></p>
-    <ul>
-      <li><strong>Quick recall:</strong> hold V/↑ for 2 s to load M1. Hold A/↓ for 2 s to load M2.</li>
-      <li><strong>Recall any group:</strong> hold SET for 2 s. Turn the knob to M1–M9. Press SET to load the group.</li>
-      <li><strong>Save values into a group:</strong> in the data setting menu, select the group number with the knob.
-        Press SET, then use V/↑, A/↓ and the knob to set U-SET, I-SET, S-OVP, S-OCP, S-OPP and the other values.
-        Hold SET for 2 s to save the group.<span class="unconfirmed">*</span> Press SET to exit.</li>
-      <li><strong>M-PRE:</strong> ON keeps the output state when you recall the group. OFF switches the output off when you recall the group.</li>
-      <li><strong>Output on start</strong> (S-INI): ON switches the output on when the supply starts. Use it with care.</li>
-    </ul>
+      <p><strong>Set the over-current protection (OCP)</strong></p>
+      <ol>
+        <li>Press SET. The data setting menu opens.</li>
+        <li>Press V/↑ or A/↓ until <strong>S-OCP</strong> is selected.</li>
+        <li>Press the knob to put the cursor on a digit. Turn the knob to change it.</li>
+        <li>Press SET to exit.<span class="unconfirmed">*</span></li>
+      </ol>
+      <p>
+        Use the same steps for <strong>S-OVP</strong> (over-voltage, in V) and <strong>S-OPP</strong> (over-power, in W).
+        Set OCP a little above the current that your load needs. Set OVP a little above U-SET.
+        If a value goes above its limit, the supply switches the output off and shows OVP, OCP or OPP.
+        The output also switches off when the power board is hotter than 80 °C.
+        Remove the cause, then press ON/OFF to switch the output on again.
+      </p>
+      <p>
+        The protection values belong to the active memory group.
+        Every change on the supply also writes the new values into M0, the group that the supply loads at power on.
+      </p>
 
-    <p><strong>Other settings</strong></p>
-    <ul>
-      <li><strong>Key lock:</strong> hold the knob for 2 s. A lock symbol shows on the right side of the screen. Hold the knob again for 2 s to unlock.
-        ON/OFF does not work while the keys are locked.</li>
-      <li><strong>Brightness:</strong> in the data setting menu, select <strong>B-LED</strong>. Turn the knob: 0 is the darkest, 5 is the brightest.</li>
-      <li><strong>Communication settings:</strong> hold V/↑ while you switch on the supply.
-        Use V/↑ and A/↓ to select COMM (on or off), ADDR (slave address, default 001), BAUD (2400–19200, default 9600) or BPIN (Bluetooth PIN, default 1234).
-        Press the knob to change a value. Press SET two times to save and exit.<span class="unconfirmed">*</span>
-        Disconnect Bluetooth before you change these settings.</li>
-      <li><strong>Input voltage:</strong> the input must be at least 1.1 times the output voltage. For 12 V out, use 13.2 V or more in.
-        The DPS3005 accepts 6–40 V in and gives 0–32 V and 0–5 A out, up to 160 W.</li>
-    </ul>
-  </section>
+      <p><strong>Memory groups M0–M9</strong></p>
+      <ul>
+        <li><strong>Quick recall:</strong> hold V/↑ for 2 s to load M1. Hold A/↓ for 2 s to load M2.</li>
+        <li><strong>Recall any group:</strong> hold SET for 2 s. Turn the knob to M1–M9. Press SET to load the group.</li>
+        <li><strong>Save values into a group:</strong> in the data setting menu, select the group number with the knob.
+          Press SET, then use V/↑, A/↓ and the knob to set U-SET, I-SET, S-OVP, S-OCP, S-OPP and the other values.
+          Hold SET for 2 s to save the group.<span class="unconfirmed">*</span> Press SET to exit.</li>
+        <li><strong>M-PRE:</strong> ON keeps the output state when you recall the group. OFF switches the output off when you recall the group.</li>
+        <li><strong>Output on start</strong> (S-INI): ON switches the output on when the supply starts. Use it with care.</li>
+      </ul>
+
+      <p><strong>Other settings</strong></p>
+      <ul>
+        <li><strong>Key lock:</strong> hold the knob for 2 s. A lock symbol shows on the right side of the screen. Hold the knob again for 2 s to unlock.
+          ON/OFF does not work while the keys are locked.</li>
+        <li><strong>Brightness:</strong> in the data setting menu, select <strong>B-LED</strong>. Turn the knob: 0 is the darkest, 5 is the brightest.</li>
+        <li><strong>Communication settings:</strong> hold V/↑ while you switch on the supply.
+          Use V/↑ and A/↓ to select COMM (on or off), ADDR (slave address, default 001), BAUD (2400–19200, default 9600) or BPIN (Bluetooth PIN, default 1234).
+          Press the knob to change a value. Press SET two times to save and exit.<span class="unconfirmed">*</span>
+          Disconnect Bluetooth before you change these settings.</li>
+        <li><strong>Input voltage:</strong> the input must be at least 1.1 times the output voltage. For 12 V out, use 13.2 V or more in.
+          The DPS3005 accepts 6–40 V in and gives 0–32 V and 0–5 A out, up to 160 W.</li>
+      </ul>
+    </section>
+    </div>
 
   <section aria-labelledby="links-heading">
     <h2 id="links-heading">Links and references</h2>

@@ -109,6 +109,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `js/update.js` | Version badge, version check and update banner |
 | `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
+| `help.html` | Help page. It has one part for each app page: General, Meter, Battery test, Power supply. |
 | `help.cs.html` | Czech help page. Keep it in step with `help.html`. |
 | `img/` | Photos of the TC66C, the DPS front panel (help page and start page) and the battery cells (start page) |
 | `test/` | Unit tests, end-to-end tests, meter fixtures, Modbus fixture frames |

@@ -204,7 +204,7 @@ section {
   container-type: inline-size;
 }
 
-h2 {
+h2, .section-heading {
   font-size: 0.8rem;
   margin: 0 0 12px;
   color: var(--color-muted);
@@ -575,7 +575,33 @@ progress { width: 100%; height: 14px; margin-top: 10px; }
 /* Help page. */
 .prose { max-width: 760px; }
 .prose section { margin-bottom: 26px; }
-.prose h2 { margin-bottom: 8px; }
+.prose h2, .prose .section-heading { margin-bottom: 8px; }
+
+/* Help page parts: one part for each app page. */
+.help-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+.help-parts a { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+.help-parts a:hover { text-decoration: underline; }
+.help-part { display: grid; gap: 14px; }
+.help-part, .prose section { scroll-margin-top: 80px; }
+.prose .help-part section { margin-bottom: 12px; }
+.help-part .part-title {
+  font-size: 1.4rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
+  margin: 16px 0 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-border);
+}
+.help-part .part-page { margin: 0; color: var(--color-muted); font-size: 0.9rem; }
+.help-part .part-page a { color: var(--color-accent); }
 .prose p { line-height: 1.55; margin: 8px 0; }
 .prose ul, .prose ol { line-height: 1.55; padding-left: 20px; margin: 8px 0; }
 .prose li { margin: 4px 0; }
