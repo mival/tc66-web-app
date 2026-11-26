@@ -43,7 +43,7 @@ jobs:
       - name: Copy the page files
         run: |
           mkdir _site
-          cp -r index.html battery.html dps.html help.html help.cs.html manifest.webmanifest sw.js icon.svg version.json css js _site/
+          cp -r index.html meter.html battery.html dps.html help.html help.cs.html manifest.webmanifest sw.js icon.svg version.json css js _site/
           [ -d img ] && cp -r img _site/ || true
       # Write the git commit and the date into the build.
       # The page shows the version. The service worker gets a new cache name.
@@ -53,7 +53,7 @@ jobs:
           DATE="$(date -u +%Y-%m-%d)"
           printf "window.APP_VERSION = { commit: '%s', date: '%s' };\n" "$VERSION" "$DATE" > _site/js/version.js
           printf '{ "commit": "%s", "date": "%s" }\n' "$VERSION" "$DATE" > _site/version.json
-          sed -i "s/const CACHE_VERSION = '[^']*';/const CACHE_VERSION = 'tc66-$VERSION';/" _site/sw.js
+          sed -i "s/const CACHE_VERSION = '[^']*';/const CACHE_VERSION = 'serialbench-$VERSION';/" _site/sw.js
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site

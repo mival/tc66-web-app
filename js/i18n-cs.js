@@ -10,11 +10,30 @@
     'TC66C Battery Test': 'Test baterie TC66C',
     'Battery Test': 'Test baterie',
     'DPS Power Supply': 'Zdroj DPS',
-    'TC66C Help': 'Nápověda TC66C',
+    'SerialBench Help': 'Nápověda SerialBench',
+    'Home': 'Domů',
     'Meter': 'Měřič',
     'Battery test': 'Test baterie',
     'Power supply': 'Zdroj',
     'Help': 'Nápověda',
+    // Landing page
+    'Bench instruments in your browser': 'Laboratorní přístroje v prohlížeči',
+    'Read a USB-C meter, test power banks and control a lab power supply over USB. No install, no server, no account.':
+      'Čtěte USB-C měřič, testujte powerbanky a ovládejte laboratorní zdroj přes USB. Bez instalace, bez serveru, bez účtu.',
+    'RDTech TC66C USB-C meter. Live voltage, current and power with charts, the offline recording and firmware update.':
+      'USB-C měřič RDTech TC66C. Živé napětí, proud a výkon s grafy, offline záznam a aktualizace firmwaru.',
+    'Measure the real capacity of a power bank with the TC66C. Automatic start and stop, saved tests, CSV and JSON export.':
+      'Změřte skutečnou kapacitu powerbanky pomocí TC66C. Automatický start a stop, uložené testy, export do CSV a JSON.',
+    'RDTech DPS3005 over Modbus. Set the voltage and the current limit, switch the output, use memory groups and safety limits.':
+      'RDTech DPS3005 přes Modbus. Nastavte napětí a proudový limit, zapínejte výstup, používejte paměťové skupiny a bezpečnostní limity.',
+    'Runs in the browser.': 'Běží v prohlížeči.',
+    'The page uses the Web Serial API. You need no driver and no app.': 'Stránka používá Web Serial API. Nepotřebujete ovladač ani aplikaci.',
+    'Works offline.': 'Funguje offline.',
+    'Install it as an app. It keeps working without a network.': 'Nainstalujte ji jako aplikaci. Funguje i bez sítě.',
+    'Your data stays here.': 'Data zůstávají u vás.',
+    'Battery tests stay in this browser. Export them to JSON or CSV.': 'Testy baterií zůstávají v tomto prohlížeči. Exportujte je do JSON nebo CSV.',
+    'Read the help': 'Přečíst nápovědu',
+    'Source code on GitHub': 'Zdrojový kód na GitHubu',
     'Connect': 'Připojit',
     'Disconnect': 'Odpojit',
     'Choose port…': 'Vybrat port…',

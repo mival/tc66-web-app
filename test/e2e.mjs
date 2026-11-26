@@ -1,4 +1,4 @@
-// End-to-end test: runs index.html in headless Chrome with a mock Web Serial port.
+// End-to-end test: runs meter.html in headless Chrome with a mock Web Serial port.
 // The mock replays real meter bytes from test/fixtures.
 // Run: BROWSER_PATH=<chrome-headless-shell> node test/e2e.mjs
 import fs from 'node:fs';
@@ -90,7 +90,7 @@ try {
   await sendCommand('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: outputDirectory });
   await sendCommand('Emulation.setDeviceMetricsOverride', { width: 1100, height: 1800, deviceScaleFactor: 1, mobile: false });
   await sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: mockSerialScript });
-  await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'index.html')).href });
+  await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'meter.html')).href });
   await sleep(500);
 
   // Theme toggle cycles auto -> light -> dark -> auto and sets the meta element.
@@ -184,7 +184,7 @@ try {
   const fakeFirmwarePath = path.join(outputDirectory, 'fake-firmware.bin');
   fs.writeFileSync(fakeFirmwarePath, fakeFirmware);
 
-  await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'index.html')).href + '?boot=1' });
+  await sendCommand('Page.navigate', { url: pathToFileURL(path.join(projectDirectory, 'meter.html')).href + '?boot=1' });
   await sleep(600);
   await click('#connect');
   await sleep(800);

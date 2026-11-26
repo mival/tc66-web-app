@@ -7,11 +7,12 @@
 //
 // The deploy workflow replaces CACHE_VERSION with the git commit.
 // A new name makes the service worker cache the new files and remove the old cache.
-const CACHE_VERSION = 'tc66-dev';
+const CACHE_VERSION = 'serialbench-dev';
 const NETWORK_WAIT_MS = 3000;
 const APP_SHELL = [
   './',
   'index.html',
+  'meter.html',
   'battery.html',
   'dps.html',
   'help.html',

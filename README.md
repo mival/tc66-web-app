@@ -1,8 +1,10 @@
-# TC66C Web Serial
+# SerialBench
 
-A web page for the RDTech TC66C USB-C meter and the RDTech DPS3005 power supply. The page uses the Web Serial API. It needs no server and no build step.
+Bench instruments in the browser. SerialBench reads the RDTech TC66C USB-C meter, runs power bank capacity tests and controls the RDTech DPS3005 power supply.
+It uses the Web Serial API. It needs no server and no build step.
 
 Online version: <https://mival.github.io/tc66-web-app/>. You can also open `index.html` from a local folder.
+The start page (`index.html`) links to each tool.
 
 ## Features
 
@@ -74,7 +76,7 @@ The DPS3005 scaling agrees with public register tables. The scaling of other DPS
 ## Use
 
 1. Connect the meter to Windows. WSL does not see the COM port.
-2. Open the online version or the local `index.html` in Chrome or Edge.
+2. Open the online version or the local `index.html` in Chrome or Edge. Then select **Meter**.
 3. Click **Connect**, then select "GD32 Virtual Com Port".
 4. Close other programs that use the port before you connect.
 
@@ -84,7 +86,8 @@ For the offline recording, set the sample period to the value on the meter. The 
 
 | Path | Content |
 |---|---|
-| `index.html` | Meter page markup |
+| `index.html` | Start page: links to the tools |
+| `meter.html` | Meter page markup |
 | `battery.html` | Battery test page markup |
 | `dps.html` | Power supply page markup |
 | `css/style.css` | Styles, light and dark color scheme, phone layout |
@@ -107,7 +110,7 @@ For the offline recording, set the sample period to the value on the meter. The 
 | `version.json` | Version file for the periodic check |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | PWA files |
 | `help.cs.html` | Czech help page. Keep it in step with `help.html`. |
-| `img/` | Photos of the TC66C and the DPS front panel (help page) |
+| `img/` | Photos of the TC66C and the DPS front panel (help page and start page) |
 | `test/` | Unit tests, end-to-end tests, meter fixtures, Modbus fixture frames |
 | `test/lib/browser.mjs` | Shared end-to-end test code: Chrome, DevTools calls, checks, static server |
 | `research/` | Local research files (not in git): scripts, firmware images |

@@ -5,28 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <script>
-// Apply the stored color scheme before the first paint. js/app.js has the toggle logic.
+// Apply the stored color scheme before the first paint. js/theme.js has the toggle logic.
 try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta[name="color-scheme"]').content = (s === 'light' || s === 'dark') ? s : 'light dark'; } catch {}
 </script>
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1c1f23" media="(prefers-color-scheme: dark)">
-<title>TC66C Meter</title>
+<meta name="description" content="Bench instruments in the browser: read the RDTech TC66C USB-C meter, test power banks and control a DPS3005 power supply over Web Serial.">
+<title>SerialBench</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="js/vendor/uplot/uPlot.min.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header>
-  <h1><span class="logo" aria-hidden="true">⚡</span>TC66C Meter</h1>
-  <nav class="page-nav"><span aria-current="page">Meter</span> · <a href="battery.html">Battery test</a> · <a href="dps.html">Power supply</a> · <a href="help.html">Help</a></nav>
-  <div class="status" role="status" aria-live="polite">
-    <span class="dot" id="status-dot"></span><span id="status-text">Not connected</span>
-  </div>
+  <h1><span class="logo" aria-hidden="true">⚡</span>SerialBench</h1>
+  <nav class="page-nav"><span aria-current="page">Home</span> · <a href="meter.html">Meter</a> · <a href="battery.html">Battery test</a> · <a href="dps.html">Power supply</a> · <a href="help.html">Help</a></nav>
   <div class="row header-actions">
-    <button class="primary" id="connect">Connect</button>
-    <button id="choose-port" type="button" hidden title="Choose another serial port">Choose port…</button>
-    <button id="disconnect" hidden disabled>Disconnect</button>
     <button class="icon-button" id="theme-toggle" data-theme-toggle type="button" aria-label="Theme: auto">
       <svg class="icon-auto" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" /></svg>
       <svg class="icon-sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></svg>
@@ -35,174 +29,46 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
     </button>
   </div>
 </header>
-<main>
-  <section id="unsupported" class="error-message" hidden>
-    This browser has no Web Serial API. Use Chrome or Edge (or Firefox 151+), and open the page from a local file or from localhost/https.
-  </section>
+<main class="landing">
+  <div class="hero">
+    <h2>Bench instruments in your browser</h2>
+    <p>Read a USB-C meter, test power banks and control a lab power supply over USB. No install, no server, no account.</p>
+    <p id="unsupported" class="hero-warning" role="alert" hidden>
+      This browser has no Web Serial API. Use Chrome or Edge (or Firefox 151+), and open the page from a local file or from localhost/https.
+    </p>
+  </div>
 
-  <section aria-labelledby="live-heading">
-    <h2 id="live-heading">Live</h2>
-    <div class="dps-badges" aria-label="Meter state">
-      <span class="badge" id="badge-connection" data-state="neutral">Not connected</span>
-      <span class="badge" id="badge-mode" data-state="neutral">Mode –</span>
-      <span class="badge" id="badge-packets" data-state="neutral">Bad packets 0</span>
-    </div>
-    <div class="readouts">
-      <div class="readout voltage"><div class="label" data-unit="V">Voltage <button type="button" class="help-btn" popovertarget="help-voltage" aria-label="What is voltage?">?</button></div><span class="value" id="value-voltage">–</span><span class="unit">V</span></div>
-      <div class="readout current"><div class="label" data-unit="A">Current <button type="button" class="help-btn" popovertarget="help-current" aria-label="What is current?">?</button></div><span class="value" id="value-current">–</span><span class="unit">A</span></div>
-      <div class="readout power"><div class="label" data-unit="W">Power <button type="button" class="help-btn" popovertarget="help-power" aria-label="What is power?">?</button></div><span class="value" id="value-power">–</span><span class="unit">W</span></div>
-    </div>
-    <div class="secondary-values">
-      <div><span>Load </span><b id="value-resistance">–</b> Ω <button type="button" class="help-btn" popovertarget="help-resistance" aria-label="What is load resistance?">?</button></div>
-      <div><span>Temp </span><b id="value-temperature">–</b> °C <button type="button" class="help-btn" popovertarget="help-temperature" aria-label="What is temperature?">?</button></div>
-      <div><span>D+ </span><b id="value-data-plus">–</b> V <button type="button" class="help-btn" popovertarget="help-data-plus" aria-label="What is D+?">?</button></div>
-      <div><span>D− </span><b id="value-data-minus">–</b> V <button type="button" class="help-btn" popovertarget="help-data-minus" aria-label="What is D−?">?</button></div>
-      <div><span>Samples </span><b id="value-sample-count">0</b> <button type="button" class="help-btn" popovertarget="help-sample-count" aria-label="What is the sample count?">?</button></div>
-    </div>
-    <!-- Help texts for the live values. Each one opens from its "?" button. -->
-    <div popover id="help-voltage" class="help-pop">Bus voltage (VBUS) across the USB connector.</div>
-    <div popover id="help-current" class="help-pop">Current on the bus. It rises when the load draws power.</div>
-    <div popover id="help-power" class="help-pop">Power now. Power is voltage times current.</div>
-    <div popover id="help-resistance" class="help-pop">Load resistance. The meter computes it from the voltage and the current.</div>
-    <div popover id="help-temperature" class="help-pop">Internal temperature of the meter.</div>
-    <div popover id="help-data-plus" class="help-pop">Voltage on the USB D+ data line. A charger sets D+ and D− to tell the device how much current it can draw. This is the charge mode.</div>
-    <div popover id="help-data-minus" class="help-pop">Voltage on the USB D− data line. With D+, it shows the charger handshake, for example USB BC1.2 or Quick Charge.</div>
-    <div popover id="help-sample-count" class="help-pop">Number of readings since you connected.</div>
-  </section>
+  <div class="tool-cards">
+    <article class="tool-card" style="--tint: var(--color-voltage)">
+      <img src="img/tc66c.jpg" alt="" width="1080" height="1080" loading="lazy">
+      <h2><a class="card-link" href="meter.html">Meter</a></h2>
+      <p>RDTech TC66C USB-C meter. Live voltage, current and power with charts, the offline recording and firmware update.</p>
+    </article>
+    <article class="tool-card" style="--tint: var(--color-success)">
+      <svg class="tool-card-art" viewBox="0 0 120 90" aria-hidden="true">
+        <rect x="22" y="25" width="70" height="40" rx="7" fill="none" stroke="currentColor" stroke-width="5" />
+        <rect x="92" y="37" width="7" height="16" rx="2" fill="currentColor" />
+        <rect x="30" y="33" width="14" height="24" rx="2" fill="currentColor" />
+        <rect x="48" y="33" width="14" height="24" rx="2" fill="currentColor" opacity="0.7" />
+        <rect x="66" y="33" width="14" height="24" rx="2" fill="currentColor" opacity="0.35" />
+      </svg>
+      <h2><a class="card-link" href="battery.html">Battery test</a></h2>
+      <p>Measure the real capacity of a power bank with the TC66C. Automatic start and stop, saved tests, CSV and JSON export.</p>
+    </article>
+    <article class="tool-card" style="--tint: var(--color-power)">
+      <img src="img/dps.jpg" alt="" width="1133" height="1073" loading="lazy">
+      <h2><a class="card-link" href="dps.html">Power supply</a></h2>
+      <p>RDTech DPS3005 over Modbus. Set the voltage and the current limit, switch the output, use memory groups and safety limits.</p>
+    </article>
+  </div>
 
-  <section aria-labelledby="screen-heading">
-    <h2 id="screen-heading">Meter screen</h2>
-    <div class="row">
-      <button data-command="lastp" disabled>◀ Previous page</button>
-      <button data-command="nextp" disabled>Next page ▶</button>
-      <button data-command="rotat" disabled>⟳ Rotate</button>
-    </div>
-  </section>
+  <ul class="landing-facts">
+    <li><strong>Runs in the browser.</strong> The page uses the Web Serial API. You need no driver and no app.</li>
+    <li><strong>Works offline.</strong> Install it as an app. It keeps working without a network.</li>
+    <li><strong>Your data stays here.</strong> Battery tests stay in this browser. Export them to JSON or CSV.</li>
+  </ul>
 
-  <section aria-labelledby="charts-heading">
-    <h2 id="charts-heading">Charts</h2>
-    <div class="chart-controls">
-      <fieldset class="segmented" id="poll-interval">
-        <legend>Poll every</legend>
-        <label><input type="radio" name="poll-interval" value="250"><span>0.25 s</span></label>
-        <label><input type="radio" name="poll-interval" value="500" checked><span>0.5 s</span></label>
-        <label><input type="radio" name="poll-interval" value="1000"><span>1 s</span></label>
-        <label><input type="radio" name="poll-interval" value="2000"><span>2 s</span></label>
-        <label><input type="radio" name="poll-interval" value="5000"><span>5 s</span></label>
-      </fieldset>
-      <fieldset class="segmented" id="chart-window">
-        <legend>Show</legend>
-        <label><input type="radio" name="chart-window" value="60"><span>1 min</span></label>
-        <label><input type="radio" name="chart-window" value="300" checked><span>5 min</span></label>
-        <label><input type="radio" name="chart-window" value="900"><span>15 min</span></label>
-        <label><input type="radio" name="chart-window" value="3600"><span>1 h</span></label>
-        <label><input type="radio" name="chart-window" value="0"><span>all</span></label>
-      </fieldset>
-      <div class="row">
-        <button id="pause" disabled>Pause</button>
-        <button id="clear">Clear samples</button>
-        <button id="save-live" disabled>Save live CSV</button>
-      </div>
-    </div>
-    <div class="charts" role="img" aria-label="Charts of voltage, current and power over time. The current values are shown above.">
-      <div class="uchart" id="chart-voltage"></div>
-      <div class="uchart" id="chart-current"></div>
-      <div class="uchart" id="chart-power"></div>
-    </div>
-  </section>
-
-  <section aria-labelledby="device-heading">
-    <h2 id="device-heading">Device</h2>
-    <dl class="info">
-      <dt>Model</dt><dd id="device-model">–</dd>
-      <dt>Firmware</dt><dd id="device-firmware">–</dd>
-      <dt>Serial</dt><dd id="device-serial">–</dd>
-      <dt>Run count</dt><dd id="device-run-count">–</dd>
-      <dt>Group 0</dt><dd id="device-group-0">–</dd>
-      <dt>Group 1</dt><dd id="device-group-1">–</dd>
-    </dl>
-    <p class="hint">Reset the groups with the buttons on the meter. No serial command for this is known.</p>
-  </section>
-
-  <section aria-labelledby="recording-heading">
-    <h2 id="recording-heading">Offline recording</h2>
-    <div class="row">
-      <label>Sample period <input type="number" id="sample-period" min="1" max="3600" step="1" value="10" data-stepper="sample period"> s</label>
-      <button id="download-recording" disabled>Download recording</button>
-      <button id="save-recording-csv" disabled>Save CSV</button>
-      <button id="save-recording-bin" disabled>Save raw .bin</button>
-      <span id="recording-progress" class="hint" role="status"></span>
-    </div>
-    <p class="hint">Set the sample period to the value on the meter. The meter does not send it.</p>
-    <div class="summary" id="recording-summary" hidden></div>
-    <div class="charts" id="recording-charts" hidden role="img" aria-label="Charts of the offline recording. The summary is shown above.">
-      <div class="uchart" id="recording-chart-voltage"></div>
-      <div class="uchart" id="recording-chart-current"></div>
-      <div class="uchart" id="recording-chart-power"></div>
-    </div>
-  </section>
-
-  <section class="danger" aria-labelledby="update-heading">
-    <details id="update-details">
-      <summary id="update-heading">⚠ Firmware update (danger)</summary>
-
-      <div class="warn-box" role="alert">
-        <strong>Warning.</strong> A firmware update can make the meter unusable (a "brick").
-        <ul>
-          <li data-i18n-html="firmware-only-official">Flash <strong>only</strong> an official TC66 firmware image. A wrong file can destroy the meter.</li>
-          <li data-i18n-html="firmware-do-not-unplug">Do <strong>not</strong> unplug the meter during the update.</li>
-          <li>Use a direct USB port. Do not use a hub.</li>
-        </ul>
-      </div>
-
-      <h3>Step 1 — Enter bootloader mode</h3>
-      <ol class="steps">
-        <li>Disconnect the meter.</li>
-        <li data-i18n-html="boot-hold-k1">Press and hold the <strong>K1</strong> button.</li>
-        <li>Connect the meter while you hold K1.</li>
-        <li>Release K1.</li>
-        <li data-i18n-html="boot-click-connect">Click <strong>Connect</strong> at the top, then <strong>Check mode</strong> below.</li>
-      </ol>
-      <div class="row">
-        <button id="check-mode" disabled>Check mode</button>
-        <span>Mode: <b id="update-mode">unknown</b></span>
-      </div>
-
-      <h3>Step 2 — Choose the firmware file</h3>
-      <div class="row">
-        <input type="file" id="firmware-file" accept=".bin,application/octet-stream">
-      </div>
-      <p id="firmware-info" class="hint"></p>
-
-      <h3>Step 3 — Flash</h3>
-      <label class="confirm">
-        <input type="checkbox" id="update-confirm">
-        I understand this can permanently brick the meter.
-      </label>
-      <div class="row">
-        <button id="flash" class="danger-button" disabled>Flash firmware</button>
-        <span id="flash-status" class="hint" role="status"></span>
-      </div>
-      <progress id="flash-progress" max="100" value="0" hidden></progress>
-    </details>
-  </section>
-
-  <section aria-labelledby="raw-heading">
-    <details>
-      <summary id="raw-heading">Advanced: raw command</summary>
-      <p class="hint" data-i18n-html="raw-hint">Sends ASCII text with no terminator, then shows all bytes until 0.5 s of silence. <b>update</b> puts the meter into the bootloader.</p>
-      <form class="row" id="raw-form">
-        <input id="raw-command" placeholder="e.g. query" autocomplete="off" spellcheck="false" maxlength="64">
-        <button id="raw-send" type="submit" disabled>Send</button>
-      </form>
-      <pre id="raw-output" hidden></pre>
-    </details>
-  </section>
-
-  <section aria-labelledby="log-heading">
-    <h2 id="log-heading">Log</h2>
-    <pre id="log" aria-live="polite"></pre>
-  </section>
+  <p class="landing-more"><a href="help.html">Read the help</a> · <a href="https://github.com/mival/tc66-web-app" target="_blank" rel="noopener">Source code on GitHub</a></p>
 </main>
 <footer class="app-foot">
   <span class="app-version" data-app-version>dev</span>
@@ -212,14 +78,13 @@ try { var s = localStorage.getItem('color-scheme'); document.querySelector('meta
 <script src="js/version.js"></script>
 <script src="js/i18n-cs.js"></script>
 <script src="js/i18n.js"></script>
-<script src="js/common.js"></script>
-<script src="js/tc66.js"></script>
-<script src="js/vendor/uplot/uPlot.iife.min.js"></script>
-<script src="js/uchart.js"></script>
-<script src="js/stepper.js"></script>
 <script src="js/theme.js"></script>
-<script src="js/app.js"></script>
 <script src="js/pwa.js"></script>
 <script src="js/update.js"></script>
+<script>
+Theme.init();
+// Show the warning when the browser cannot open a serial port.
+if (!('serial' in navigator)) document.getElementById('unsupported').hidden = false;
+</script>
 </body>
 </html>
